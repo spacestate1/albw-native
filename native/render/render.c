@@ -195,8 +195,8 @@ typedef struct {
  * The top screen is a 240x400 buffer stored rotated (GL rows = the 400-pixel long side). In
  * widescreen every surface of that shape (colour, depth, display image) gets g_ws_rows physical
  * rows instead of 400; viewports and copies that cover the whole 400 rows are stretched onto them,
- * and the game's projections are widened by the same factor (albw_ws_factor, compilefix
- * 0057F6C0 / 001312BC): more of the scene to the sides, nothing stretched. Passes that use a part
+ * and the game's projections are widened by the same factor (albw_ws_factor,
+ * gameplay/view_projection.c and compilefix 001312BC): more of the scene to the sides, nothing stretched. Passes that use a part
  * of such a buffer (the bottom screen draws 240x320 into the shared 0x1F000080 buffer) stay 1:1.
  * A separate static (not a field of R): save states restore static data by symbol. */
 static int g_ws_rows = 400;
@@ -2258,14 +2258,14 @@ uint32_t *render_rec(uint32_t *p, const ROp *op) { return rec(p, op, 0); }
 uint32_t *render_rec_pinned(uint32_t *p, const ROp *op) { return rec(p, op, 1); }
 
 static void raw_flush(void);
-void albw_ws_refresh(void) __attribute__((weak));        /* compilefix 0057F6C0 */
+void albw_view_refresh(void) __attribute__((weak));      /* gameplay/view_projection.c */
 void plat_frame_end_hook(void) __attribute__((weak));    /* platform.c: deferred widescreen toggle */
 void render_frame_end(void) {
     g_glprog_bound = 0;   /* scan-out and the platform's composite bound their own programs */
     /* between frames (the frame was presented, the next one not begun): settings that change the
      * top screen's shape, then projections built for the other shape are marked for a rebuild */
     if (plat_frame_end_hook) plat_frame_end_hook();
-    if (albw_ws_refresh) albw_ws_refresh();
+    if (albw_view_refresh) albw_view_refresh();
     lock();
     raw_flush();
     if (g_light_trace) {

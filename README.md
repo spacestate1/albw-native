@@ -103,6 +103,7 @@ are on a 3DS.
 | F6 / F7 | save state / load state |
 | F9 | single-screen mode on / off |
 | F10 | widescreen top screen (a wider view, not stretched) |
+| PageDown / PageUp | zoom out / back in: the top screen shows more of the world (also Ctrl + mouse wheel, and the slider in Esc > Video) |
 | F12 | screenshot |
 
 ### Single-screen mode

@@ -72,7 +72,7 @@ static MenuVtx menu_vtx[MENU_MAX_VTX];
 static int menu_nv;
 
 enum { MI_RESUME, MI_WINDOWS, MI_SINGLE, MI_PRESET, MI_SWAP, MI_FILTER, MI_INTEGER, MI_RES, MI_FULLSCREEN, MI_EDIT,
-       MI_CONTROLS, MI_QUIT, MI_STYLE, MI_BIND_DEV, MI_BIND_RESET, MI_SS_SLOT, MI_SS_SAVE, MI_SS_LOAD, MI_DBG_EFT, MI_DBG_FOG, MI_DBG_FPS, MI_DBG_SPEED, MI_WIDE, MI_RESET, MI_LOG_COPY, MI_LOG_FOLDER, MI_LOG_PATH, MI_REPORT, MI_DBG_LOG, MI_ABOUT_VER, MI_ABOUT_BUILD, MI_ABOUT_SITE, MI_SET_SEL, MI_SET_LOAD, MI_LANG, MI_WARP_COURSE, MI_WARP_ROOM, MI_WARP_GO, MI_SPAWN_SEL, MI_SPAWN_GO, MI_COUNT };
+       MI_CONTROLS, MI_QUIT, MI_STYLE, MI_BIND_DEV, MI_BIND_RESET, MI_SS_SLOT, MI_SS_SAVE, MI_SS_LOAD, MI_DBG_EFT, MI_DBG_FOG, MI_DBG_FPS, MI_DBG_SPEED, MI_WIDE, MI_RESET, MI_LOG_COPY, MI_LOG_FOLDER, MI_LOG_PATH, MI_REPORT, MI_DBG_LOG, MI_ABOUT_VER, MI_ABOUT_BUILD, MI_ABOUT_SITE, MI_SET_SEL, MI_SET_LOAD, MI_LANG, MI_WARP_COURSE, MI_WARP_ROOM, MI_WARP_GO, MI_SPAWN_SEL, MI_SPAWN_GO, MI_ZOOM, MI_COUNT };
 
 typedef struct { const char *title; const int *items; int n; const char *const *notes; } MenuDef;
 #define MI_BIND_BASE 200   /* MI_BIND_BASE + InAction: one Controls row per action */
@@ -80,7 +80,7 @@ static int menu_controls_items[2 + IN_ACTION_COUNT] = {MI_BIND_DEV, MI_BIND_RESE
 static const char *const menu_controls_notes[] = {"Enter: press the new key / button   - or Delete: clear",
                                                   "Several keys: edit input.cfg (\"A, B\" or \"Ctrl&X\")", NULL};
 static const int menu_file_items[] = {MI_RESUME, MI_SS_SLOT, MI_SS_SAVE, MI_SS_LOAD, MI_SET_SEL, MI_SET_LOAD, MI_LANG, MI_CONTROLS, MI_RESET, MI_QUIT};
-static const int menu_video_items[] = {MI_WINDOWS, MI_SINGLE, MI_WIDE, MI_PRESET, MI_SWAP, MI_FILTER, MI_INTEGER, MI_RES, MI_FULLSCREEN, MI_EDIT, MI_STYLE};
+static const int menu_video_items[] = {MI_WINDOWS, MI_SINGLE, MI_WIDE, MI_ZOOM, MI_PRESET, MI_SWAP, MI_FILTER, MI_INTEGER, MI_RES, MI_FULLSCREEN, MI_EDIT, MI_STYLE};
 static const int menu_help_items[] = {MI_LOG_COPY, MI_LOG_FOLDER, MI_REPORT, MI_LOG_PATH};
 static const char *const menu_help_notes[] = {"Copy log, then paste it into the GitHub issue (Ctrl+V)",
                                               "The log holds no ROM data or personal files", NULL};
@@ -196,6 +196,14 @@ static SDL_Window *menu_window(void) {
 static int menu_fullscreen(void) { return (SDL_GetWindowFlags(win) & SDL_WINDOW_FULLSCREEN) != 0; }
 
 static const char *log_file(void) { const char *p = getenv("ALBW_LOG_FILE"); return p && *p ? p : NULL; }
+/* The zoom row is a slider: a bar ZOOM_BAR_CHARS wide that starts ZOOM_BAR_AT characters into the row */
+#define ZOOM_BAR_AT 15
+#define ZOOM_BAR_CHARS 20
+static float zoom_share(void) { return (float)(g_layout_cfg.zoom - LAYOUT_ZOOM_MIN) / (LAYOUT_ZOOM_MAX - LAYOUT_ZOOM_MIN); }
+static void menu_zoom_set(int percent) {
+    if (plat_zoom_set(percent) || !g_menu_note[0])
+        snprintf(g_menu_note, sizeof g_menu_note, "Shown when you resume. In game: PageDown / PageUp");
+}
 static void menu_label(int i, char *buf, size_t n) {
     if (i >= MI_BIND_BASE && i < MI_BIND_BASE + IN_ACTION_COUNT) {
         int a = i - MI_BIND_BASE;
@@ -217,6 +225,7 @@ static void menu_label(int i, char *buf, size_t n) {
         snprintf(buf, n, "Language       < %s >", nm[(unsigned)g_layout_cfg.language < 6 ? g_layout_cfg.language : 0]);
         break;
     }
+    case MI_ZOOM: snprintf(buf, n, "Zoom out%*s%3d %%", ZOOM_BAR_AT - 8 + ZOOM_BAR_CHARS + 2, "", g_layout_cfg.zoom); break;
     case MI_WIDE: snprintf(buf, n, "Widescreen (F10)  < %s >", g_layout_cfg.widescreen ? "16:9" : "Off (5:3)"); break;
     case MI_PRESET: snprintf(buf, n, "Layout         < %s >", layout_preset_name(g_layout_cfg.preset)); break;
     case MI_SWAP: snprintf(buf, n, "Swap screens   < %s >", g_layout_cfg.swap ? "On" : "Off"); break;
@@ -572,6 +581,9 @@ static void menu_activate(int i, int dir) {
         if (layout_save(&g_layout_cfg, NULL) == 0) snprintf(g_menu_note, sizeof g_menu_note, "Language saved: File > Reset game to use it");
         else snprintf(g_menu_note, sizeof g_menu_note, "Cannot save the language setting");
         break;
+    case MI_ZOOM:   /* Enter: a step further out, and from the end back to the game's own view */
+        menu_zoom_set(dir > 0 && g_layout_cfg.zoom >= LAYOUT_ZOOM_MAX ? LAYOUT_ZOOM_MIN : g_layout_cfg.zoom + 10 * dir);
+        break;
     case MI_WIDE: plat_widescreen_set(!g_layout_cfg.widescreen); break;
     case MI_SWAP: g_layout_cfg.swap ^= 1; plat_layout_changed(); break;
     case MI_FILTER: g_layout_cfg.linear_filter ^= 1; plat_layout_changed(); break;
@@ -686,6 +698,30 @@ static void menu_switch(int d) {
     g_menu_note[0] = 0;
 }
 static void menu_do(int dir) { menu_activate(menu_defs[g_menu_cur].items[g_menu_sel], dir); }
+static int menu_on_zoom(void) { return menu_defs[g_menu_cur].items[g_menu_sel] == MI_ZOOM; }
+/* Left / Right: the slider when it is selected, else the next menu */
+static void menu_sideways(int d) {
+    if (menu_on_zoom()) menu_zoom_set(g_layout_cfg.zoom + 10 * d);
+    else menu_switch(d);
+}
+/* a click or drag at mouse x (window points) on the zoom row: set it from the bar; 0 = beside the bar */
+static int menu_zoom_point(float mx, int dragging) {
+    SDL_Window *mw = menu_window();
+    int ww, wh;
+    SDL_GetWindowSizeInPixels(mw, &ww, &wh);
+    MenuGeom g;
+    menu_geom(ww, wh, &g);
+    float cw = MENU_FONT_W * g.s;
+    float from = g.dx + cw + ZOOM_BAR_AT * cw, wide = ZOOM_BAR_CHARS * cw;
+    float x = mx * SDL_GetWindowPixelDensity(mw);
+    if (!dragging && (x < from - cw || x > from + wide + cw)) return 0;
+    float share = (x - from) / wide;
+    share = share < 0 ? 0 : share > 1 ? 1 : share;
+    int percent = LAYOUT_ZOOM_MIN + (int)(share * (LAYOUT_ZOOM_MAX - LAYOUT_ZOOM_MIN) / 5.0f + 0.5f) * 5;
+    menu_zoom_set(percent);
+    return 1;
+}
+static int g_zoom_dragging;
 
 /* mouse position (window pixels of the menu window) -> 0..n-1 item of the open menu, 1000 + m the
  * title of menu m, -1 on the bar / dropdown but not on an item, -2 outside both */
@@ -735,8 +771,11 @@ static void menu_event(const SDL_Event *e) {
         if (k == SDLK_ESCAPE || k == SDLK_BACKSPACE) { if (!e->key.repeat) g_menu_open = 0; }
         else if (k == SDLK_UP) menu_move(-1);
         else if (k == SDLK_DOWN) menu_move(1);
-        else if (k == SDLK_LEFT) menu_switch(-1);
-        else if (k == SDLK_RIGHT || k == SDLK_TAB) menu_switch(back ? -1 : 1);
+        else if (k == SDLK_LEFT) menu_sideways(-1);
+        else if (k == SDLK_RIGHT) menu_sideways(1);
+        else if (k == SDLK_TAB) menu_switch(back ? -1 : 1);
+        else if ((k == SDLK_MINUS || k == SDLK_KP_MINUS) && menu_on_zoom()) menu_zoom_set(g_layout_cfg.zoom - 10);
+        else if ((k == SDLK_PLUS || k == SDLK_EQUALS || k == SDLK_KP_PLUS) && menu_on_zoom()) menu_zoom_set(g_layout_cfg.zoom + 10);
         else if (k == SDLK_MINUS || k == SDLK_KP_MINUS || k == SDLK_DELETE) menu_do(-1);
         else if (k == SDLK_PLUS || k == SDLK_EQUALS || k == SDLK_KP_PLUS) menu_do(1);
         else if ((k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) && !e->key.repeat) menu_do(back ? -1 : 1);
@@ -746,9 +785,9 @@ static void menu_event(const SDL_Event *e) {
         switch (e->gbutton.button) {
         case SDL_GAMEPAD_BUTTON_DPAD_UP: menu_move(-1); break;
         case SDL_GAMEPAD_BUTTON_DPAD_DOWN: menu_move(1); break;
-        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+        case SDL_GAMEPAD_BUTTON_DPAD_LEFT: menu_sideways(-1); break;
         case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER: menu_switch(-1); break;
-        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT: menu_sideways(1); break;
         case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: menu_switch(1); break;
         case SDL_GAMEPAD_BUTTON_SOUTH: menu_do(1); break;
         case SDL_GAMEPAD_BUTTON_NORTH: menu_do(-1); break;
@@ -757,7 +796,15 @@ static void menu_event(const SDL_Event *e) {
         default: break;
         }
         return;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+        g_zoom_dragging = 0;
+        return;
+    case SDL_EVENT_MOUSE_WHEEL:
+        if (menu_on_zoom() && e->wheel.y != 0) menu_zoom_set(g_layout_cfg.zoom + (e->wheel.y < 0 ? -5 : 5));
+        return;
     case SDL_EVENT_MOUSE_MOTION:
+        if (g_zoom_dragging && (e->motion.state & SDL_BUTTON_LMASK)) { menu_zoom_point(e->motion.x, 1); return; }
+        g_zoom_dragging = 0;
         if (e->motion.windowID == SDL_GetWindowID(menu_window())) {
             int i = menu_hit(e->motion.x, e->motion.y);
             if (i >= 1000 && i - 1000 != g_menu_cur) { g_menu_cur = i - 1000; g_menu_sel = 0; }   /* hover switches */
@@ -769,7 +816,11 @@ static void menu_event(const SDL_Event *e) {
             e->button.windowID == SDL_GetWindowID(menu_window())) {
             int i = menu_hit(e->button.x, e->button.y);
             if (i >= 1000) { g_menu_cur = i - 1000; g_menu_sel = 0; }
-            else if (i >= 0) { g_menu_sel = i; menu_do(e->button.button == SDL_BUTTON_RIGHT ? -1 : 1); }
+            else if (i >= 0) {
+                g_menu_sel = i;
+                if (!menu_on_zoom()) menu_do(e->button.button == SDL_BUTTON_RIGHT ? -1 : 1);
+                else if (e->button.button == SDL_BUTTON_LEFT) g_zoom_dragging = menu_zoom_point(e->button.x, 0);
+            }
             else if (i == -2) g_menu_open = 0;
         }
         return;
@@ -799,6 +850,13 @@ static void menu_flush(int ww, int wh) {
     glDisable(GL_BLEND);
 }
 
+/* the slider: a track, the filled part, and a knob; (x, y) = its left end, middle height */
+static void menu_zoom_bar(float x, float y, float w, float s) {
+    float at = x + w * zoom_share();
+    menu_rect(x, y - 2.5f * s, w, 5 * s, 0.35f, 0.38f, 0.42f, 1);
+    menu_rect(x, y - 2.5f * s, at - x, 5 * s, 0.85f, 0.70f, 0.25f, 1);
+    menu_rect(at - 3 * s, y - 8 * s, 6 * s, 16 * s, 1.0f, 0.92f, 0.65f, 1);
+}
 static void menu_draw(int ww, int wh) {
     MenuGeom g;
     menu_geom(ww, wh, &g);
@@ -841,6 +899,7 @@ static void menu_draw(int ww, int wh) {
         menu_label(i, buf, sizeof buf);
         float c = i == MI_SWAP && g_separate ? 0.5f : 1.0f;   /* swap only arranges the joined window */
         menu_text(g.dx + cw, y + (g.row - th) * 0.5f, s, buf, c, c, c, 1);
+        if (i == MI_ZOOM) menu_zoom_bar(g.dx + cw + ZOOM_BAR_AT * cw, y + g.row * 0.5f, ZOOM_BAR_CHARS * cw, s);
     }
     for (int k = 0; k < g.nnotes; k++) {
         float hs = s * 0.75f;
@@ -863,6 +922,22 @@ static void menu_title_hint(int ww, int wh, float rx, float ry, float rw, float 
     menu_nv = 0;
     menu_rect(x - 8 * s, y - 5 * s, w + 16 * s, h + 10 * s, 0.0f, 0.0f, 0.0f, 0.55f);
     menu_text(x, y, s, txt, 1.0f, 0.85f, 0.45f, 1.0f);
+    menu_flush(ww, wh);
+}
+
+/* the zoom bar over the running game, for a moment after PageDown / PageUp / Ctrl + wheel */
+static void menu_zoom_overlay(int ww, int wh, float rx, float ry, float rw, float rh) {
+    menu_gl_init();
+    float s = rw / (MENU_FONT_W * 50.0f);
+    if (s < 0.8f) s = 0.8f;
+    float cw = MENU_FONT_W * s, th = MENU_FONT_H * s, w = (ZOOM_BAR_AT + ZOOM_BAR_CHARS + 7) * cw;
+    float x = rx + (rw - w) * 0.5f, y = ry + rh * 0.06f;   /* the top: the hearts are at the bottom */
+    char buf[96];
+    menu_label(MI_ZOOM, buf, sizeof buf);
+    menu_nv = 0;
+    menu_rect(x - cw, y - 6 * s, w + 2 * cw, th + 12 * s, 0.0f, 0.0f, 0.0f, 0.65f);
+    menu_text(x, y, s, buf, 1.0f, 0.95f, 0.85f, 1.0f);
+    menu_zoom_bar(x + ZOOM_BAR_AT * cw, y + th * 0.5f, ZOOM_BAR_CHARS * cw, s);
     menu_flush(ww, wh);
 }
 

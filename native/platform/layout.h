@@ -30,6 +30,8 @@
  *   custom_front bottom       screen drawn last (on top) where custom rectangles overlap
  *   language system           system | en | fr | de | it | es (read at start-up)
  *   widescreen 0              1 = 16:9 top screen: the game draws a wider view (F10)
+ *   zoom 100                  how much of the world the top screen shows, percent: 100 (the game's own)
+ *                             to 200 (twice as much each way); PageUp / PageDown
  *   single_screen 0           1 = show one screen: the top one, and the bottom one in its place while
  *                             the SCREEN binding (Tab / right-stick click) has it toggled up
  *   custom top 0.00000 0.00000 1.00000 0.50000 1      x y w h (normalized to the window) visible
@@ -62,6 +64,9 @@ typedef enum {
 
 typedef struct { float x, y, w, h; } LayoutRect;
 
+#define LAYOUT_ZOOM_MIN 100
+#define LAYOUT_ZOOM_MAX 200
+
 /* Remembered geometry of one separate window (window points). */
 typedef struct { int x, y, w, h, has_pos, has_size; } LayoutWindowGeom;
 
@@ -84,6 +89,7 @@ typedef struct {
     int widescreen;          /* 1 = 16:9 top screen (wider view, not stretched) */
     int language;            /* game language: 0 = the computer's, 1 English, 2 French, 3 German, 4 Italian, 5 Spanish (read at start-up) */
     int show_bottom;         /* single_screen: the bottom screen is up (runtime only, not saved) */
+    int zoom;                /* top screen view, percent: LAYOUT_ZOOM_MIN (the game's own) .. LAYOUT_ZOOM_MAX */
 } LayoutConfig;
 
 /* A computed layout for one window size. */

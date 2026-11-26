@@ -863,6 +863,7 @@ static int g_ss_front;
 static int g_title_prompt;     /* the bottom screen shows "Press A" */
 static long g_title_pending;   /* frame of the press that is waiting for the file list, 0 = none */
 static void menu_title_hint(int ww, int wh, float rx, float ry, float rw, float rh);
+static void menu_zoom_overlay(int ww, int wh, float rx, float ry, float rw, float rh);
 static void plat_single_screen_flip(void);
 static __attribute__((noinline)) void title_composite(const Layout *l) {
     extern long g_plat_frames;
@@ -933,9 +934,28 @@ static void plat_widescreen_set(int on) {
     g_ws_pending = on ? 2 : 1;
     if (!render_ready()) { g_ws_pending = 0; plat_widescreen_apply(on); }
 }
+/* zoom out (layout.cfg zoom, Esc menu > Video, PageUp / PageDown, Ctrl + mouse wheel): the game builds its
+ * top-screen projections for a wider view (gameplay/view_projection.c) */
+static float g_view_zoom = 1.0f;   /* the value in use; follows the setting between frames */
+float albw_view_zoom(void) { return g_view_zoom; }
+static uint64_t g_zoom_shown_ns;   /* the on-screen bar is up for a moment after a change while playing */
+static int plat_zoom_set(int percent) {
+    if (percent < LAYOUT_ZOOM_MIN) percent = LAYOUT_ZOOM_MIN;
+    if (percent > LAYOUT_ZOOM_MAX) percent = LAYOUT_ZOOM_MAX;
+    if (percent == g_layout_cfg.zoom) return 0;
+    g_layout_cfg.zoom = percent;
+    plat_layout_changed();
+    fprintf(stderr, "layout: zoom %d %%\n", percent);
+    return 1;
+}
+static void plat_zoom_key(int step) {
+    plat_zoom_set(g_layout_cfg.zoom + step);
+    g_zoom_shown_ns = plat_ticks_ns();
+}
 /* render.c render_frame_end: after the present, before the next frame's game update builds its
  * projections (pumping events can happen mid-frame) */
 void plat_frame_end_hook(void) {
+    g_view_zoom = (float)g_layout_cfg.zoom / 100.0f;
     if (!g_ws_pending) return;
     int on = g_ws_pending == 2;
     g_ws_pending = 0;
@@ -1089,6 +1109,10 @@ static int plat_layout_event(const SDL_Event *e) {
             if (!e->key.repeat) plat_widescreen_set(!g_layout_cfg.widescreen);
             return 1;
         }
+        if (e->key.key == SDLK_PAGEDOWN || e->key.key == SDLK_PAGEUP) {   /* zoom out / back in (a held key repeats) */
+            plat_zoom_key(e->key.key == SDLK_PAGEDOWN ? 10 : -10);
+            return 1;
+        }
         if (e->key.key == SDLK_F9) {   /* single-screen mode on / off */
             if (!e->key.repeat) plat_single_screen_set(!g_layout_cfg.single_screen);
             return 1;
@@ -1141,6 +1165,12 @@ static int plat_layout_event(const SDL_Event *e) {
     case SDL_EVENT_WINDOW_RESIZED:
         plat_window_geom_event(e->window.windowID);
         return 0;
+    case SDL_EVENT_MOUSE_WHEEL:   /* Ctrl + wheel: zoom (without Ctrl: the layout editor, below) */
+        if ((mod & SDL_KMOD_CTRL) && !g_layout_editing && e->wheel.y != 0) {
+            plat_zoom_key(e->wheel.y < 0 ? 5 : -5);
+            return 1;
+        }
+        break;
     default:
         break;
     }
@@ -1722,6 +1752,10 @@ static void plat_composite_to(GLuint fbo, const Layout *l) {
     }
     sel_composite(l);   /* single-screen selector over the bottom screen (selector.c) */
     title_composite(l); /* single-screen title: "Press A" on the top screen, file list switch */
+    if (fbo == 0 && !g_menu_open && g_zoom_shown_ns && l->visible[SCREEN_TOP]) {
+        if (plat_ticks_ns() - g_zoom_shown_ns > 1500000000ull) g_zoom_shown_ns = 0;
+        else menu_zoom_overlay(l->ww, l->wh, l->r[SCREEN_TOP].x, l->r[SCREEN_TOP].y, l->r[SCREEN_TOP].w, l->r[SCREEN_TOP].h);
+    }
     {   /* debug: ALBW_WIN_SHOT=<frame>[,<frame>...] writes the composed window (both screens, selector, overlays) as
            win_<frame>.ppm in ALBW_SHOT_DIR (default .): ALBW_SHOT only saves the two screen targets */
         extern long g_plat_frames;

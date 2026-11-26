@@ -32,6 +32,7 @@
 #pragma STDC FP_CONTRACT OFF
 #include "../route/route.h"
 float albw_ws_factor(void);   /* render.c: widescreen factor (1 = off) */
+float albw_view_zoom(void);   /* platform.c: zoom out (1 = off) */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -291,6 +292,7 @@ int func_001312BC(char *sb, int param_2)
     func_003E183C((float *)(sp + 8), (float *)(sp + 0xC), a);
     float t = F32(8) / F32(0xC);
     float c = 1.0f / t;
+    c = c / albw_view_zoom();   /* zoom out: the same wider view as the drawn one (view_projection.c) */
     float w = c / (1.66666663f * albw_ws_factor()); /* 0x3FD55555; widescreen: the wider top screen */
     float h = c * s20;
     w = w * s19;
