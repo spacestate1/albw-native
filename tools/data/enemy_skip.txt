@@ -1,0 +1,3 @@
+# enemy profiles left out of Esc > Debug > Enemy: "name reason" (spawn test, areas of enemy_packs.txt)
+EnemySandBoss needs its stage placement (rail): crashes when spawned (EU 22141C reads rail point 4)
+EnemySandBossChild is not created when spawned alone

@@ -76,7 +76,7 @@ for f in native/platform/platform.c native/platform/drmlease.c native/platform/l
     [[ -f "$o" && "$o" -nt "$f" ]] || stale=1
     # platform.c #includes layout.c, input.c, menu.c (+ menu_font.h): rebuild when any changed
     if [[ "$f" == native/platform/platform.c && $stale == 0 ]]; then
-        for inc in native/platform/{layout,input,menu,selector}.c native/platform/{menu_font,layout,gl,selector_img,drmlease}.h native/render/render.h; do [[ "$inc" -nt "$o" ]] && stale=1; done
+        for inc in native/platform/{layout,input,menu,selector,debugtools}.c native/platform/{menu_font,layout,gl,selector_img,drmlease,debug_enemies}.h native/render/render.h; do [[ "$inc" -nt "$o" ]] && stale=1; done
     fi
     # the leased panel (drmlease.c): Wayland's client headers and the drm-lease protocol, vendored
     [[ "$f" == native/platform/drmlease.c || "$f" == third_party/wayland/* ]] && EXTRA=(-Ithird_party/wayland)

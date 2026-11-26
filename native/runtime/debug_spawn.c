@@ -40,11 +40,26 @@ int albw_debug_profile(const char *name) {
     return -1;
 }
 
+/* 1 when every resource slot of the profile is filled: its pack is loaded here */
+int albw_debug_ready(const char *name) {
+    int id = albw_debug_profile(name);
+    if (id < 0) return 0;
+    uint32_t prof = (uint32_t)func_0019B04C((uint32_t)id);
+    uint32_t n = func_002E01AC(*(uint32_t *)(uintptr_t)(prof + 8)) & 0xFF;
+    for (uint32_t i = 0; i < n; i++)
+        if (*(uint32_t *)(uintptr_t)(prof + 0x1C8 + i * 4) == 0) return 0;
+    return 1;
+}
+
 void *albw_debug_spawn(const char *name, float dx, float dz) {
     const float *pp = albw_debug_player_pos();
     int id = albw_debug_profile(name);
     if (!pp || id < 0) {
         fprintf(stderr, "spawn: %s: %s\n", name, id < 0 ? "no such profile" : "no player");
+        return NULL;
+    }
+    if (!albw_debug_ready(name)) {   /* creating it would read a missing model and crash */
+        fprintf(stderr, "spawn: %s: its data is not loaded in this area\n", name);
         return NULL;
     }
     _Alignas(16) uint8_t sp[0x2D0];
@@ -186,26 +201,4 @@ void albw_delegate_bad(const char *dlg, const void *fn) {
     const uint32_t *w = (const uint32_t *)dlg;
     fprintf(stderr, "delegate: target %p is not code (dlg %p: %08x %08x %08x %08x, frame %ld, caller %p) - call skipped\n",
             fn, (const void *)dlg, w[0], w[1], w[2], w[3], g_plat_frames, __builtin_return_address(0));
-}
-
-/* the executable's code segment (PT_LOAD with PF_X of the main program), for robust_pmf.h */
-#include <link.h>
-uintptr_t albw_code_lo, albw_code_hi;
-static int code_range_cb(struct dl_phdr_info *info, size_t size, void *data) {
-    (void)size; (void)data;
-    if (info->dlpi_name && info->dlpi_name[0])   /* the main program comes first, with no name */
-        return 0;
-    for (int i = 0; i < info->dlpi_phnum; i++) {
-        const ElfW(Phdr) *ph = &info->dlpi_phdr[i];
-        if (ph->p_type == PT_LOAD && (ph->p_flags & PF_X)) {
-            uintptr_t lo = info->dlpi_addr + ph->p_vaddr, hi = lo + ph->p_memsz;
-            if (!albw_code_hi || lo < albw_code_lo) albw_code_lo = lo;
-            if (hi > albw_code_hi) albw_code_hi = hi;
-        }
-    }
-    return 1;
-}
-void albw_code_range_init(void) {
-    dl_iterate_phdr(code_range_cb, 0);
-    if (!albw_code_hi) { albw_code_lo = 0; albw_code_hi = UINTPTR_MAX; }   /* unknown: never reject */
 }

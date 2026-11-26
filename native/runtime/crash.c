@@ -179,3 +179,27 @@ void runtime_install_crash_handler(void) {
     const int sigs[] = {SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT};
     for (size_t i = 0; i < sizeof sigs / sizeof *sigs; i++) sigaction(sigs[i], &sa, NULL);
 }
+
+/* the executable's code segment (PT_LOAD with PF_X of the main program), for robust_pmf.h. Kept
+ * here, outside what save states hold (BOOT_LOG 172): restored from a state of another build, the old
+ * bounds rejected real functions and their delegate calls were skipped. */
+#include <link.h>
+uintptr_t albw_code_lo, albw_code_hi;
+static int code_range_cb(struct dl_phdr_info *info, size_t size, void *data) {
+    (void)size; (void)data;
+    if (info->dlpi_name && info->dlpi_name[0])   /* the main program comes first, with no name */
+        return 0;
+    for (int i = 0; i < info->dlpi_phnum; i++) {
+        const ElfW(Phdr) *ph = &info->dlpi_phdr[i];
+        if (ph->p_type == PT_LOAD && (ph->p_flags & PF_X)) {
+            uintptr_t lo = info->dlpi_addr + ph->p_vaddr, hi = lo + ph->p_memsz;
+            if (!albw_code_hi || lo < albw_code_lo) albw_code_lo = lo;
+            if (hi > albw_code_hi) albw_code_hi = hi;
+        }
+    }
+    return 1;
+}
+void albw_code_range_init(void) {
+    dl_iterate_phdr(code_range_cb, 0);
+    if (!albw_code_hi) { albw_code_lo = 0; albw_code_hi = UINTPTR_MAX; }   /* unknown: never reject */
+}

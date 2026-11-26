@@ -16,10 +16,12 @@
  *  Help   Copy log to clipboard (header + end of the log file, for GitHub issues), Open log folder,
  *         Report a problem (GitHub), log path
  *  About  Version (from VERSION) and build date / time
- *  Debug  Logging (starts a log file when run from a terminal), Particles, Fog, Show FPS (window title), Speed (25 % .. unlimited). The retail code has
- *         no hidden debug menu to expose (searched: the only developer leftovers are the course
- *         list's E3Field / Test* names, whose course files are not on the ROM, the Dbg:* heaps and
- *         the event flag name cmn_debug_goal_on), so this menu holds the port's own switches.
+ *  Debug  Warp to a room, spawn an enemy of the current room (debugtools.c), Logging (starts a log
+ *         file when run from a terminal), Particles, Fog, Show FPS (window title), Speed (25 % ..
+ *         unlimited). The retail code has no hidden debug menu to expose (searched: the only
+ *         developer leftovers are the course list's E3Field / Test* names, whose course files are
+ *         not on the ROM, the Dbg:* heaps and the event flag name cmn_debug_goal_on), so this menu
+ *         holds the port's own tools and switches.
  *
  * Keys: Left / Right switch menus, Up / Down select, Enter / Space (or +) changes forward, - (or
  * Shift+Enter) backward, Escape / Backspace close. Gamepad: D-pad, A changes, Y backward, B / Start
@@ -70,7 +72,7 @@ static MenuVtx menu_vtx[MENU_MAX_VTX];
 static int menu_nv;
 
 enum { MI_RESUME, MI_WINDOWS, MI_SINGLE, MI_PRESET, MI_SWAP, MI_FILTER, MI_INTEGER, MI_RES, MI_FULLSCREEN, MI_EDIT,
-       MI_CONTROLS, MI_QUIT, MI_STYLE, MI_BIND_DEV, MI_BIND_RESET, MI_SS_SLOT, MI_SS_SAVE, MI_SS_LOAD, MI_DBG_EFT, MI_DBG_FOG, MI_DBG_FPS, MI_DBG_SPEED, MI_WIDE, MI_RESET, MI_LOG_COPY, MI_LOG_FOLDER, MI_LOG_PATH, MI_REPORT, MI_DBG_LOG, MI_ABOUT_VER, MI_ABOUT_BUILD, MI_ABOUT_SITE, MI_SET_SEL, MI_SET_LOAD, MI_LANG, MI_COUNT };
+       MI_CONTROLS, MI_QUIT, MI_STYLE, MI_BIND_DEV, MI_BIND_RESET, MI_SS_SLOT, MI_SS_SAVE, MI_SS_LOAD, MI_DBG_EFT, MI_DBG_FOG, MI_DBG_FPS, MI_DBG_SPEED, MI_WIDE, MI_RESET, MI_LOG_COPY, MI_LOG_FOLDER, MI_LOG_PATH, MI_REPORT, MI_DBG_LOG, MI_ABOUT_VER, MI_ABOUT_BUILD, MI_ABOUT_SITE, MI_SET_SEL, MI_SET_LOAD, MI_LANG, MI_WARP_COURSE, MI_WARP_ROOM, MI_WARP_GO, MI_SPAWN_SEL, MI_SPAWN_GO, MI_COUNT };
 
 typedef struct { const char *title; const int *items; int n; const char *const *notes; } MenuDef;
 #define MI_BIND_BASE 200   /* MI_BIND_BASE + InAction: one Controls row per action */
@@ -84,9 +86,28 @@ static const char *const menu_help_notes[] = {"Copy log, then paste it into the 
                                               "The log holds no ROM data or personal files", NULL};
 static const int menu_about_items[] = {MI_ABOUT_VER, MI_ABOUT_BUILD, MI_ABOUT_SITE};
 static const char *const menu_about_notes[] = {"Unofficial native port of A Link Between Worlds", "Needs your own ROM; none is included", NULL};
-static const int menu_debug_items[] = {MI_DBG_LOG, MI_DBG_EFT, MI_DBG_FOG, MI_DBG_FPS, MI_DBG_SPEED};
-static const char *const menu_debug_notes[] = {"Game debug menus: none in the retail code", "(dev courses E3Field / Test*: not on the ROM)",
-                                               NULL};
+static const int menu_debug_items[] = {MI_WARP_COURSE, MI_WARP_ROOM, MI_WARP_GO, MI_SPAWN_SEL, MI_SPAWN_GO,
+                                       MI_DBG_LOG, MI_DBG_EFT, MI_DBG_FOG, MI_DBG_FPS, MI_DBG_SPEED};
+static const char *const menu_debug_notes[] = {"Warp and spawn are test tools: save first (F6)",
+                                               "A warp can leave the story in an odd state", NULL};
+static int g_warp_course = -1, g_warp_room = 1;   /* Debug > Warp: starts at the current room */
+static int g_spawn_sel;
+static void warp_init(void) {
+    if (g_warp_course >= 0) return;
+    int c, r;
+    if (dbg_in_game() && dbg_area(&c, &r) && dbg_courses[c].label && r <= dbg_courses[c].rooms) g_warp_course = c, g_warp_room = r;
+}
+static int warp_course(void) { return g_warp_course >= 0 ? g_warp_course : 0; }
+/* the enemy chosen in the list of the current area (NULL: none here) */
+static const char *spawn_choice(int *k, int *n) {
+    int count;
+    dbg_enemy_here(-1, &count);
+    if (n) *n = count;
+    if (!dbg_in_game() || !count) return NULL;
+    int i = g_spawn_sel % count;
+    if (k) *k = i;
+    return dbg_enemy_here(i, NULL);
+}
 #define MENU_N(a) ((int)(sizeof(a) / sizeof(a)[0]))
 static const MenuDef menu_defs[] = {
     {"File", menu_file_items, MENU_N(menu_file_items), NULL},
@@ -231,6 +252,23 @@ static void menu_label(int i, char *buf, size_t n) {
     case MI_ABOUT_VER: { const char *v = getenv("ALBW_VERSION"); snprintf(buf, n, "Version: %s", v && *v ? v : "(unknown)"); break; }
     case MI_ABOUT_BUILD: snprintf(buf, n, "Built: %s %s", __DATE__, __TIME__); break;
     case MI_ABOUT_SITE: snprintf(buf, n, "github.com/spacestate1/albw-native"); break;
+    case MI_WARP_COURSE:
+        warp_init();
+        snprintf(buf, n, "Warp: area     < %s >", dbg_courses[warp_course()].label);
+        break;
+    case MI_WARP_ROOM:
+        warp_init();
+        snprintf(buf, n, "Warp: room     < %d of %d >", g_warp_room, dbg_courses[warp_course()].rooms);
+        break;
+    case MI_WARP_GO: snprintf(buf, n, "Warp there"); break;
+    case MI_SPAWN_SEL: {
+        int k = 0, count = 0;
+        const char *e = spawn_choice(&k, &count);
+        if (e) snprintf(buf, n, "Enemy          < %s > %d/%d", e + (strncmp(e, "Enemy", 5) ? 0 : 5), k + 1, count);
+        else snprintf(buf, n, "Enemy          %s", dbg_in_game() ? "(none loaded in this room)" : "(start a game first)");
+        break;
+    }
+    case MI_SPAWN_GO: snprintf(buf, n, "Spawn it next to Link"); break;
     case MI_DBG_LOG: snprintf(buf, n, "Logging        < %s >", log_file() ? "On (Help > Copy log)" : "Off"); break;
     case MI_DBG_EFT: snprintf(buf, n, "Particles      < %s >", g_dbg_eft_off ? "Off" : "On"); break;
     case MI_DBG_FOG: snprintf(buf, n, "Fog            < %s >", g_dbg_fog_off ? "Off" : "On"); break;
@@ -587,6 +625,39 @@ static void menu_activate(int i, int dir) {
         albw_ss_request(i == MI_SS_SAVE ? 1 : 2, g_ss_slot);
         g_menu_open = 0;
         break;
+    case MI_WARP_COURSE: {
+        warp_init();
+        int c = warp_course();
+        do c = (c + (dir < 0 ? DBG_COURSES - 1 : 1)) % DBG_COURSES; while (!dbg_courses[c].label);
+        g_warp_course = c;
+        g_warp_room = 1;
+        break;
+    }
+    case MI_WARP_ROOM: {
+        warp_init();
+        g_warp_course = warp_course();
+        int max = dbg_courses[g_warp_course].rooms;
+        g_warp_room = (g_warp_room - 1 + (dir < 0 ? max - 1 : 1)) % max + 1;
+        break;
+    }
+    case MI_WARP_GO:
+        warp_init();
+        if (!dbg_in_game()) { snprintf(g_menu_note, sizeof g_menu_note, "Start a game first"); break; }
+        dbg_request_warp(warp_course(), g_warp_room);
+        g_menu_open = 0;
+        break;
+    case MI_SPAWN_SEL: {
+        int count = 0, k = 0;
+        if (spawn_choice(&k, &count)) g_spawn_sel = (k + (dir < 0 ? count - 1 : 1)) % count;
+        break;
+    }
+    case MI_SPAWN_GO: {
+        const char *e = spawn_choice(NULL, NULL);
+        if (!e) snprintf(g_menu_note, sizeof g_menu_note, dbg_in_game() ? "No enemy is loaded in this room" : "Start a game first");
+        else if (!dbg_request_spawn(e)) snprintf(g_menu_note, sizeof g_menu_note, "%s is not loaded in this room", e);
+        else g_menu_open = 0;
+        break;
+    }
     case MI_DBG_LOG: log_enable(); break;
     case MI_DBG_EFT:
         g_dbg_eft_off ^= 1;

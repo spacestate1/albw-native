@@ -37,7 +37,7 @@ typedef void (*albw_dlg_v2)(char *self, uintptr_t a1, uintptr_t a2);
  * non-code target here, so the check only fires on corruption: the call is skipped and logged
  * (first 8 times). Code = this executable's text (the game and the port are one binary). */
 void albw_delegate_bad(const char *dlg, const void *fn);   /* native/runtime/debug_spawn.c */
-extern uintptr_t albw_code_lo, albw_code_hi;                /* the executable's PF_X segment */
+extern uintptr_t albw_code_lo, albw_code_hi;                /* the executable's PF_X segment (runtime/crash.c) */
 void albw_code_range_init(void);
 static inline int albw_code_ptr(const void *p) {
     if (!albw_code_hi) albw_code_range_init();

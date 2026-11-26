@@ -1,3 +1,5 @@
+/* compilefix: USA 003D6464 with the arguments its indirect tail call passes through restored
+ * (tools/tail_args_fix.py, BOOT_LOG 172). */
 /* compilefix: func_003D6464, the converted stage-2 text (build/decomp/ghidra_fallback/ghidra_analyzed5_v4/003/func_003D6464.c) with `this` restored in 1
  * member-function-pointer call(s) by tools/pmf_this_fix.py (BOOT_LOG 140): this = BASE + (adj >> 1).
  * Further arguments of those calls are as Ghidra printed them. */
@@ -36,7 +38,7 @@ undefined4 func_003D6464(int param_1,int *param_2)
   }
                     /* WARNING: Could not recover jumptable at 0x003d649c. Too many branches */
                     /* WARNING: Treating indirect jump as call */
-  uVar1 = (*(int (*)(int *))UNRECOVERED_JUMPTABLE)(((int *)((int)(param_1) + ((int)uVar3 >> 1))));   /* this restored (pmf_this_fix) */
+  uVar1 = (*(int (*)())UNRECOVERED_JUMPTABLE)(((int *)((int)(param_1) + ((int)uVar3 >> 1))),param_2);   /* this restored (pmf_this_fix) */
   return uVar1;
 }
 

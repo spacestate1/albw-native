@@ -1308,6 +1308,7 @@ static uint32_t route_button(const char *name, size_t n) {
     return 0;
 }
 static int g_route_touch, g_route_tx, g_route_ty;   /* touch step: applied in plat_poll */
+#include "debugtools.c"   /* warp / spawn: the Debug menu and the route steps */
 /* returns the buttons to hold this frame; *pad_x / *pad_y get an analogue circle pad (or stay 0) */
 static uint32_t route_step(int *pad_x, int *pad_y) {
     static const char *spec, *cur;
@@ -1363,39 +1364,22 @@ static uint32_t route_step(int *pad_x, int *pad_y) {
         fprintf(stderr, "route: warp to %.2f %.2f %.2f%s\n", wx, wy, wz, pp ? "" : " (no player)");
         done = 1;
     } else if (!strcmp(op, "scene")) {
-        /* debug: scene COURSE SCENE POINT [TRANSITION] - SCENE as in the file names (DungeonEast3 = 3;
-         * the game's own scene field counts from 0). The game's own scene change, as an exit zone
-         * (005416A0) makes it: 004EF418(scene manager *data_00709DF8, &{u8 course, s32 scene @+4,
-         * u16 point @+8}, transition, 0); the scene manager applies it (004EECD4: loads
-         * <Course><scene>.szs and its stage, Link appears at the entry point). COURSE: a number or
-         * a name (FieldLight .. DungeonBoss: the order of the game's course name table, EU 0x120398). Entry
-         * points: the stage's System objects ID 7, ARG[0] (World/Byaml/<Course><scene>_stage.byaml). */
-        static const char *const courses[] = {"FieldLight", "FieldDark", "IndoorLight", "IndoorDark", "CaveLight",
-            "CaveDark", "Dummy7", "CrossBattle", "Demo", "DungeonEast", "DungeonWind", "DungeonHera", "DungeonCastle",
-            "DungeonDark", "DungeonWater", "DungeonDokuro", "DungeonHagure", "DungeonIce", "DungeonSand", "DungeonKame",
-            "DungeonGanon", "DungeonBoss", "AttractionLight", "AttractionDark"};
-        extern char data_00709DF8[];
-        int func_004EF418(int mgr, uint8_t *loc, int transition, int flag);
+        /* debug: scene COURSE SCENE POINT [TRANSITION] - SCENE as in the file names (DungeonEast3 = 3);
+         * COURSE: a number or a name (FieldLight .. AttractionDark). See debugtools.c. */
         char cn[32] = "";
         int scene = 1, point = 0, tr = 0;
         sscanf(rest, " %31s %d %d %d", cn, &scene, &point, &tr);
         int course = -1;
-        for (int i = 0; i < (int)(sizeof courses / sizeof *courses); i++)
-            if (!strcasecmp(cn, courses[i])) course = i;
+        for (int i = 0; i < DBG_COURSES; i++)
+            if (!strcasecmp(cn, dbg_courses[i].name)) course = i;
         if (course < 0 && cn[0] >= '0' && cn[0] <= '9') course = atoi(cn);
-        uint32_t mgr = *(uint32_t *)data_00709DF8;
-        if (course < 0 || !mgr) {
+        extern char data_00709DF8[];
+        if (course < 0 || !*(uint32_t *)data_00709DF8) {
             fprintf(stderr, "route: scene %s: %s\n", cn, course < 0 ? "unknown course" : "no scene manager");
         } else {
-            _Alignas(4) uint8_t loc[12] = {0};
-            loc[0] = (uint8_t)course;
-            int scene0 = scene - 1;   /* the game counts scenes from 0: DungeonEast3 = scene 2 */
-            memcpy(loc + 4, &scene0, 4);
-            uint16_t pt = (uint16_t)point;
-            memcpy(loc + 8, &pt, 2);
-            int ok = func_004EF418((int)mgr, loc, tr, 0);
+            int ok = dbg_warp(course, scene, point, tr);
             fprintf(stderr, "route: scene: course %d (%s) scene %d point %d transition %d: %s\n", course,
-                    course < (int)(sizeof courses / sizeof *courses) ? courses[course] : "?", scene, point, tr,
+                    course < DBG_COURSES ? dbg_courses[course].name : "?", scene, point, tr,
                     ok ? "requested" : "refused");
         }
         done = 1;
@@ -1588,6 +1572,7 @@ int plat_poll(void) {
     }
     int rpx, rpy;
     uint32_t rk = route_step(&rpx, &rpy);   /* ALBW_ROUTE autopilot */
+    dbg_tick();   /* warp / spawn asked for in the Debug menu */
     if (rpx || rpy) {
         in.cpad_x = (int16_t)rpx;
         in.cpad_y = (int16_t)rpy;

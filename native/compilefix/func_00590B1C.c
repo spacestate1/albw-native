@@ -2,6 +2,10 @@
  * Failed to compile: use of undeclared identifier 'INFINITY'
  * Fixed (each an exact C form of the ARM operation; the rest is the converted Ghidra text):
  *  - Ghidra NAN(x)/INFINITY -> __builtin_isnan(x) (vcmp unordered) / +inf [1]
+ *  - the three pc-relative table addresses (literal + pc, EU 590BE4..590C18) were raw 3DS addresses
+ *    (crash reading 0x6C387C: Ice Gimos rooms, BOOT_LOG 172) -> the tables' data symbols
+ *  - 2^k is built as a bit pattern (vcvt.u32 into the register vmul then reads as a float), and the
+ *    quadrant index converts signed (vcvt.s32); checked against the host expf
  * Confidence: high for the fixes (each class checked against the EU disassembly on sample sites);
  * the function body otherwise has the fidelity of the Ghidra output (bare `return;` exits of
  * functions retyped non-void return 0, as the converter does). */
@@ -53,6 +57,8 @@ extern float DAT_00590d20;
 // GLOBAL DAT_00590d1c float
 // GLOBAL DAT_00590d20 float
 
+extern char data_006C385C[], data_006C386C[], data_006C387C[];
+
 float func_00590B1C(float fparam_0)
 
 {
@@ -90,18 +96,18 @@ float func_00590B1C(float fparam_0)
   if (((uint)ALBW_AS_U32(fparam_0) & 0x80000000) == 0) {
     fVar4 = DAT_00590cf4;
   }
-  uVar5 = (uint)(fVar4 + fparam_0 * DAT_00590cec);
+  uVar5 = (uint)(int)(fVar4 + fparam_0 * DAT_00590cec);   /* vcvt.s32: negative for x < 0 */
   uVar3 = uVar5 & 3;
   fVar4 = (float)VectorSignedToFloat(uVar5,(byte)(in_fpscr >> 0x15) & 3);
   fVar4 = (fparam_0 - fVar4 * DAT_00590cf8) - fVar4 * DAT_00590cfc;
   iVar1 = (int)uVar5 >> 2;
-  fVar4 = *(float *)(DAT_00590d10 + 0x590bf0 + uVar3 * 4) +
-          *(float *)(DAT_00590d14 + 0x590c00 + uVar3 * 4) *
+  fVar4 = *(float *)(data_006C386C + uVar3 * 4) +
+          *(float *)(data_006C387C + uVar3 * 4) *
           (DAT_00590d0c + fVar4 * (DAT_00590d08 + fVar4 * (DAT_00590d04 + fVar4 * DAT_00590d00))) *
-          fVar4 + *(float *)(DAT_00590d18 + 0x590c10 + uVar3 * 4);
+          fVar4 + *(float *)(data_006C385C + uVar3 * 4);
   if (!bVar2) {
     fVar6 = (float)VectorSignedToFloat(iVar1,(byte)(in_fpscr >> 0x15) & 3);
-    fVar6 = (float)VectorFloatToUnsigned(DAT_00590d20 + fVar6 * DAT_00590d1c,3);
+    fVar6 = ALBW_AS_F32(VectorFloatToUnsigned(DAT_00590d20 + fVar6 * DAT_00590d1c,3));   /* the bits of 2^k */
     return fVar6 * fVar4;
   }
   fVar4 = ALBW_AS_F32(((iVar1 - iVar1 / 2) * 0x800000 + 0x3f800000)) *

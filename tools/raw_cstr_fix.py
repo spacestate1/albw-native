@@ -2,7 +2,7 @@
 """Raw code-address string pointers in the Ghidra text (BOOT_LOG 143).
 
 Ghidra sometimes prints a pointer to a string literal stored among the code as a plain number,
-`(char *)0x248bd0`, which the converter leaves as a 3DS address (the Fire Rod crashed reading
+`(char *)0x248bd0` (or `(uint *)0x4f3110`, `(code *)0x2567c0`: BOOT_LOG 172), which the converter leaves as a 3DS address (the Fire Rod crashed reading
 "fade" at 0x248bd0). For every linked Ghidra source with `(char *)0xADDR` where ADDR lies in the
 code section and holds a printable NUL-terminated string, this writes native/compilefix/func_X.c
 with the number replaced by the same string as a C literal. Sources with a native override are
@@ -18,7 +18,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEXT = 0x00100000
-RAW = re.compile(r'\(char \*\)0x([0-9a-f]{5,6})\b')
+RAW = re.compile(r'\((?:char|uint|code|undefined4?) \*\)0x([0-9a-f]{5,6})\b')
 
 
 def cstring(code, addr):
@@ -60,7 +60,7 @@ def main():
             print('override exists, fix by hand: %s: %s' % (base, desc))
             continue
         for t, a, v in hits:
-            s = s.replace(t, '(char *)"%s"' % v.replace('\\', '\\\\').replace('"', '\\"'))
+            s = s.replace(t, t[:t.index(')') + 1] + '"%s"' % v.replace('\\', '\\\\').replace('"', '\\"'))
         hdr = ('/* compilefix: %s, the converted stage-2 text (%s) with raw code-address string pointers\n'
                ' * replaced by the strings themselves (tools/raw_cstr_fix.py, BOOT_LOG 143): %s */\n') % (base[:-2], p, desc)
         print('%s: %s' % (base, desc))
