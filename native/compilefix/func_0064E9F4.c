@@ -828,7 +828,7 @@ LAB_0064ffa4:
                     iVar6 = *piVar9;
                   }
                   if (!bVar17 || iVar6 != 0) {
-                    pppppppfVar20 = (float *******)CF_FBITS(func_0010F1F8(piVar9,ALBW_AS_F32(pppppppfVar20)));
+                    func_0010F1F8(piVar9,ALBW_AS_F32(pppppppfVar20));
                     piVar4[2] = piVar4[2] + -1;
                   }
                 }
@@ -843,7 +843,7 @@ LAB_0064ffa4:
                 iVar12 = *piVar4;
               }
               if (!bVar17 || iVar12 != 0) {
-                pppppppfVar20 = (float *******)CF_FBITS(func_0010F1F8(piVar4,ALBW_AS_F32(pppppppfVar20)));
+                func_0010F1F8(piVar4,ALBW_AS_F32(pppppppfVar20));
                 *(int *)(iVar6 + 8) = *(int *)(iVar6 + 8) + -1;
               }
             }

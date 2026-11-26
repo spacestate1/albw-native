@@ -213,7 +213,7 @@ undefined4 * func_00427EC4(undefined4 *param_1,int param_2)
   if (*(int *)(*(int *)PTR_00428318 + 0xf3c) != 0) {
     uVar7 = *(uint *)(*(int *)(*(int *)PTR_00428318 + 0xf3c) + 4);
   }
-  fVar14 = func_004CE804(param_1[3],uVar7 & 0xffff,0,0,in_s0);
+  func_004CE804(param_1[3],uVar7 & 0xffff,0,0,in_s0);
   uVar7 = func_00564A78(param_1[3],(int *)PTR_0042831c);
   param_1[0x1d] = uVar7;
   uVar7 = func_00564A78(param_1[3],(int *)PTR_00428320);
@@ -254,7 +254,7 @@ undefined4 * func_00427EC4(undefined4 *param_1,int param_2)
       if (*(int *)(*(int *)PTR_00428318 + 0xf3c) != 0) {
         uVar7 = *(uint *)(*(int *)(*(int *)PTR_00428318 + 0xf3c) + 4);
       }
-      fVar14 = func_004CE804((int)piVar6,uVar7 & 0xffff,0,0,fVar14);
+      func_004CE804((int)piVar6,uVar7 & 0xffff,0,0,fVar14);
       piVar8 = param_1 + 4;
       if (*piVar8 < (int)param_1[5]) {
         *(int **)(param_1[6] + *piVar8 * 4) = piVar6;
@@ -290,7 +290,7 @@ undefined4 * func_00427EC4(undefined4 *param_1,int param_2)
     if (*(int *)(*(int *)PTR_00428318 + 0xf3c) != 0) {
       uVar7 = *(uint *)(*(int *)(*(int *)PTR_00428318 + 0xf3c) + 4);
     }
-    fVar14 = func_004CE804((int)piVar6,uVar7 & 0xffff,0,0,fVar14);
+    func_004CE804((int)piVar6,uVar7 & 0xffff,0,0,fVar14);
     if ((int)param_1[0xb] < (int)param_1[0xc]) {
       *(int **)(param_1[0xd] + param_1[0xb] * 4) = piVar6;
       param_1[0xb] = param_1[0xb] + 1;

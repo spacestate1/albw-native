@@ -27,6 +27,8 @@ extern float DAT_00552b50;
 extern float DAT_00552b54;
 extern float DAT_00552b58;
 
+float *albw_s012_get(void);   /* s0..s2 of a returned vector (native/runtime/vec3ret.c) */
+
 // USA 005528F0 <- EU 005528C8 (Ghidra, non-matching)
 // GLOBAL DAT_00552b38 int *
 // GLOBAL DAT_00552b3c float
@@ -95,6 +97,8 @@ undefined4 func_005528F0(int param_1,float *param_2,float *param_3,float *param_
       iVar2 = func_0068C690(&local_44);
       local_5c[0] = 0;
       fVar6 = func_0054F764((undefined4 *)(pfVar1),iVar2,local_5c);
+      in_s1 = albw_s012_get()[1];
+      in_s2 = albw_s012_get()[2];
       if (param_2 != (float *)0x0) {
         *param_2 = fVar6;
         param_2[1] = in_s1;

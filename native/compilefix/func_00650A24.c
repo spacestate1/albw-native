@@ -1062,7 +1062,7 @@ LAB_006520d0:
               iVar14 = *piVar8;
             }
             if (!bVar16 || iVar14 != 0) {
-              pppppppfVar18 = (float *******)CF_FBITS(func_0010F1F8(piVar8,ALBW_AS_F32(pppppppfVar18)));
+              func_0010F1F8(piVar8,ALBW_AS_F32(pppppppfVar18));
               pppppppfVar36[2] = (float ******)((int)pppppppfVar36[2] + -1);
               iVar14 = extraout_r1_01;
             }

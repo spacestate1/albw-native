@@ -70,7 +70,7 @@ int func_004F8660(int *self, int a, int b, int c);
 int func_004F8998(int *self, int a, char *b);
 int func_002B2018(int *ride);
 
-typedef float (*vmul_t)(void *self);
+typedef float (*vmul_t)(void *self, void *hit);
 
 #define HP(self) FLD(self, 0x508, int16_t)
 
@@ -171,7 +171,7 @@ hp:
         d = P(W(self, 0x43C));
         uint32_t n = FLD(d, 0x30, uint16_t);
         if (n != 0) {
-            float mul = GFN(vmul_t, W(P(W(self, 0)), 0x54))(self);
+            float mul = GFN(vmul_t, W(P(W(self, 0)), 0x54))(self, d);   /* r1 = the hit record (BOOT_LOG 179) */
             float f = mul * (float)n;
             uint32_t a = gp_vcvt_u32(f) & 0xFFFF;
             if (a == 0 && !VCMP_EQ(f, 0.0f))

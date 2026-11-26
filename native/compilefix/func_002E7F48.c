@@ -36,6 +36,8 @@ extern undefined DAT_002e82bc;
 extern float DAT_002e82c8;
 extern undefined4 _DAT_002e82bc;
 
+float *albw_s012_get(void);   /* s0..s2 of a returned vector (native/runtime/vec3ret.c) */
+
 // USA 002E7F48 <- EU 002E7F24 (Ghidra, non-matching)
 // GLOBAL DAT_002e82b0 float
 // GLOBAL DAT_002e82b4 float
@@ -184,9 +186,10 @@ LAB_002e80a0:
     iVar3 = func_0068C690(&local_40);
     local_28[0] = 0;
     local_4c = func_0054F764((undefined4 *)(param_1 + 0xe30),iVar3,local_28);
+    local_48 = albw_s012_get()[1];
+    fStack_44 = albw_s012_get()[2];
     if ((*(int *)(param_1 + 0x344) != 0) &&
-       (local_48 = fVar11, fStack_44 = fVar12,
-       func_004A1B9C((int *)&local_98,*(int *)(param_1 + 0x344),(uint *)(s_cf_002e82c0)),
+       (func_004A1B9C((int *)&local_98,*(int *)(param_1 + 0x344),(uint *)(s_cf_002e82c0)),
        iVar3 = iStack_94, fVar12 = local_98, local_98 != 0.0)) {
       local_48 = *(float *)(param_1 + 0xc);
       func_004D8054(&local_4c,*(uint *)(param_1 + 1000),fparam_0);

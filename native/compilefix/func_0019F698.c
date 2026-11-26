@@ -129,7 +129,7 @@ joined_r0x0019f834:
         else if (iVar5 == 3) {
           if ((*(char *)((int)param_1 + 0x121d) == '\0') &&
              (uVar1 = *(ushort *)(param_2 + 0xc), uVar1 != 0)) {
-            (**(code **)(*param_1 + 0x54))(param_1);
+            fVar7 = ((float (*)(int *, int))*(code **)(*param_1 + 0x54))(param_1, (int)param_2);   /* damage multiplier */
             fVar8 = (float)VectorUnsignedToFloat((uint)uVar1,(byte)(in_fpscr >> 0x15) & 3);
             uVar9 = VectorFloatToUnsigned(fVar7 * fVar8,3);
             func_004FC78C((int)param_1,(short)local_50[2] - (short)uVar9);

@@ -268,7 +268,7 @@ undefined4 * func_0031DA18(undefined4 *param_1)
   if (*(int *)(*DAT_0031de30 + 0xf3c) != 0) {
     uVar9 = *(uint *)(*(int *)(*DAT_0031de30 + 0xf3c) + 4);
   }
-  fVar18 = func_004CE804(puVar2[-0x1f],uVar9 & 0xffff,0,0,fVar18);
+  func_004CE804(puVar2[-0x1f],uVar9 & 0xffff,0,0,fVar18);
   func_004CF478(puVar2[-0x1f],1);
   func_004CF864(puVar2[-0x1f],1,0xffffffff,fVar18);
   puVar5 = (undefined4 *)func_0010BAB4(0xa8);

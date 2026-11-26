@@ -128,6 +128,8 @@ extern char s_cmn_messagebottle_use_0038dc50[];
 extern undefined4 _DAT_0038d4dc;
 extern undefined4 _DAT_0038d90c;
 
+float *albw_s012_get(void);   /* s0..s2 of a returned vector (native/runtime/vec3ret.c) */
+
 // USA 0038C3F8 <- EU 0038C3D4 (Ghidra, non-matching)
 // GLOBAL DAT_0038c77c float
 // GLOBAL DAT_0038c780 float
@@ -908,6 +910,8 @@ LAB_0038d624:
       }
       if (puVar5 != (undefined4 *)0x0) {
         local_38[0] = func_00513D68((int)puVar5);
+        local_38[1] = albw_s012_get()[1];
+        local_38[2] = albw_s012_get()[2];
         func_00115D70((float *)&local_84,&local_74,DAT_0038dc88);
         local_44 = local_84;
         iStack_40 = local_80;

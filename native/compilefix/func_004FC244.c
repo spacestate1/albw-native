@@ -16,6 +16,8 @@ extern int *DAT_004fc4d0;
 extern char s_SE_EN_DAMAGE_004fc4c0[];
 extern char s_SE_EN_DAMAGE_FIRE_004fc4d4[];
 
+float *albw_s012_get(void);   /* s0..s2 of a returned vector (native/runtime/vec3ret.c) */
+
 // USA 004FC244 <- EU 004FC21C (Ghidra, non-matching)
 // PARAM param_5 Stack[0x0]:4 int
 // GLOBAL DAT_004fc4b0 int
@@ -68,6 +70,8 @@ undefined4 func_004FC244(int *param_1,int *param_2,int param_3,undefined4 param_
   objStack_a4[0] = uVar5;
   local_50[0] = func_004FA174((float *)(param_1 + 0xf4),param_1[0x10f],uVar1,*(byte *)((int)param_2 + 0x20),(float *)(param_2 + 5),
                               uVar5,objStack_a4[1]);
+  local_50[1] = albw_s012_get()[1];
+  local_50[2] = albw_s012_get()[2];
   iVar3 = DAT_004fc4b0;
   if (uVar1 == 3) {
     sVar6 = 0;
