@@ -31,6 +31,10 @@ running and changed in this build"). This happened with v0.2.15. Game saves (the
 recover: start the version that made the state (the previous release; locally `build/albw-oldstates`), load it (F7), save
 in the game, then continue from that save in the new version.
 
+v0.2.18 refuses v0.2.17 states in the same way: it builds the hand-fixed decompiled code with other compiler flags
+(BOOT_LOG 182), so those functions all changed. Tried on Linux with two states: refused with the message above, and the
+game carried on.
+
 ## The Windows freeze family (issues 7, 10, 12, 13)
 
 **Reports.** Windows 10/11, NVIDIA RTX 3050/4060/5070 Ti, AMD RX 550/6600/9070 XT: the game starts, shows the title and the

@@ -327,6 +327,14 @@ static int rom_exefs_find_locked(const char *name, uint64_t *off, uint64_t *size
  * ------------------------------------------------------------------------------------------- */
 static char save_root[PATH_MAX];
 
+static int is_separator(char c) {
+#ifdef ALBW_WINDOWS
+    if (c == '\\')
+        return 1;
+#endif
+    return c == '/';
+}
+
 static int mkdir_p(const char *path) {
     char tmp[PATH_MAX];
     size_t len = strlen(path);
@@ -384,8 +392,15 @@ static const char *save_root_locked(void) {
     }
     if (r < 0 || (size_t)r >= sizeof save_root)
         runtime_fatal("fs: save directory path too long");
-    while (r > 1 && save_root[r - 1] == '/')
+    /* separators at the end are dropped: Windows' stat() does not find "C:\saves\" (a drive root keeps its
+     * one: "C:" is the drive's current folder, which stat() does not find either) */
+    while (r > 1 && is_separator(save_root[r - 1])) {
+#ifdef ALBW_WINDOWS
+        if (save_root[r - 2] == ':')
+            break;
+#endif
         save_root[--r] = 0;
+    }
     if (mkdir_p(save_root) != 0)
         runtime_fatal("fs: cannot create the save directory '%s' (%s)", save_root,
                       strerror(errno));

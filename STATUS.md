@@ -1,12 +1,13 @@
 # Where the port stands
 
-Last updated 2026-11-26 (release **v0.2.17**). Details of every fix:
+Last updated 2026-11-26 (release **v0.2.18**). Details of every fix:
 [native/BOOT_LOG.md](native/BOOT_LOG.md).
 
 ## Releases
 
 | Version | Date | Downloads | Notes |
 |---|---|---|---|
+| [v0.2.18](https://github.com/spacestate1/albw-native/releases/tag/v0.2.18) | 2026-11-26 | Windows zip (experimental) | **Zoom out** the top screen, 100% to 200% (Esc > Video, PageDown / PageUp, Ctrl + wheel). Crashes fixed: a boss room (camera calls) and a heart pickup; two memory errors; float / integer mix-ups in the converted code; a save folder that cannot be used is reported (BOOT_LOG 182-189). Link's walking code and the projection matrix rewritten with named fields. Save states from earlier versions may not load |
 | [v0.2.17](https://github.com/spacestate1/albw-native/releases/tag/v0.2.17) | 2026-11-26 | Windows zip (experimental) | **Windows: a save state loads after restarting the game** (it crashed); portable mode no longer fails with "cannot create the save directory" when started from a prompt at a drive root (both issue 6, verified in the VM). **Enemy and physics fixes**: lost vector and number returns (knockback, damage, velocities, four animation curves; Link could be left at an invalid position). Crashes and a black screen found by testing every room and enemy and by random play (BOOT_LOG 172-179). Esc > Debug: warp to a room, spawn an enemy. AYN Thor bottom panel (pull request #18, Linux ARM) |
 | [v0.2.16](https://github.com/spacestate1/albw-native/releases/tag/v0.2.16) | 2026-11-25 | Windows zip (experimental) | **Windows: file reads from several game threads no longer mix up data** (verified in the VM; likely the start-up crash in issue 13). Crashes fixed: hookshot switch in the Swamp Palace, particle-effect sorting, a Swamp Palace enemy, painting strip in a from-scratch build; dropped sound names; pushable objects' height test. A wrong or cut-off ROM is reported and no longer remembered (issue 11). Faster graphics (pull request #17), 32-bit ARM source build (pull request #16, first part), matrix fixes (#15) |
 | [v0.2.15](https://github.com/spacestate1/albw-native/releases/tag/v0.2.15) | 2026-11-25 | Windows zip (experimental) | **Fixes the Windows freeze after the file select** (issues 7, 10, 12, 13): the loader ignored thread-end destructors, so a finished game thread kept the scheduler's core for ever (verified in the VM with a self-test); the watchdog now lists who holds the core. Swamp Palace fog from room entry; 13 more literal-pool write crashes removed; **game language** (Esc > File > Language, layout.cfg, follows the computer's language; issue 14). See ISSUES_TRIAGE.md |

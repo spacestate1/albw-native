@@ -21,7 +21,9 @@
 #                   for this run (F5 toggles at runtime and saves the choice in layout.cfg)
 #
 # Controls: arrows = circle pad, X = A, Z = B, S = X, A = Y, Q/W = L/R, Enter = Start,
-#           Backspace = Select, IJKL = D-pad, mouse on the bottom screen = touch, Esc = quit.
+#           Backspace = Select, IJKL = D-pad, mouse on the bottom screen = touch,
+#           Esc = menu (zoom out: Esc > Video), PageDown / PageUp = zoom out / back in.
+#           The full list is in README.md, "Controls".
 set -euo pipefail
 cd "$(dirname "$0")"
 
