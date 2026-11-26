@@ -70,9 +70,12 @@ fi
 # --- 5. the loader ---------------------------------------------------------------------------------
 echo "== ALBW.exe"
 mkdir -p build/win
+# --stack reserve,commit: the game program is Linux code, which takes a large stack frame in one step
+# (main: 17 KB) without touching the pages on the way, as Windows code would. With the default 4 KB
+# committed, about one start in forty crashed there. Everything up to 128 KB is committed from the start.
 $CC -O2 -mstackrealign -Wall -Wno-unused-function -I"$ZL/include" windows/loader.c -o build/win/ALBW.exe \
     -L"$ZL/lib" -lz -lcomdlg32 -lwinmm -lsynchronization -mwindows -static -static-libgcc \
-    -Wl,--large-address-aware -Wl,--image-base,0x00400000
+    -Wl,--large-address-aware -Wl,--image-base,0x00400000 -Xlinker --stack=0x200000,0x20000
 
 # --- 6. package ------------------------------------------------------------------------------------
 rm -rf "${OUT:?}"
