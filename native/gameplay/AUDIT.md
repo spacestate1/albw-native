@@ -271,7 +271,7 @@ action system (an action id + a table of 178 actions) rather than one movement r
 - `func_004C1388.c`: restores the return value (0 on the early path), signed bit-compare clamp, full 004C10C4 prototype. High.
 - player hit / knock-back dispatch, wrapper + fall-through body, lost r1/r2/s0 restored: `func_002917A4/002917AC`, `002917D4/002917DC`, `00291A38/00291A40`, `00291A04/00291A0C`, `00291FE0/00291FE8`, `0028F268/0028F270`, `0028FBF0/0028FBF8`. High.
 - player action requests, s0 restored: `00290240/00290248`, `00291518/00291520`, `002923B0/002923B8`, `002906A4/002906B8` (keeps the r2/r3 swap), `0029081C/00290824` (float-bits compare with 1.0f kept as integer compare). High.
-- `func_002900EC.c` player speed scale: flag argument restored; float virtual at slot 0x60. High (logic), medium (field meaning).
+- `link_walk.c` (was `func_002900EC.c`): player walking speed and velocity, rewritten with named fields (also holds `002D5ADC`); flag argument restored; float virtual at slot 0x60. Checked old against new by `tools/tests/link_walk_test.sh`.
 
 Checked instruction by instruction: 004CEAF0, 0051E5F8, 004C1388, 00290824, 002906B8, 002917AC,
 002900EC (002917AC re-checked independently). Test: `native/gameplay/test/player_test.c`

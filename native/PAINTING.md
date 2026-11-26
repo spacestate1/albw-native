@@ -11,7 +11,7 @@ same code to travel along the walls of his room.
 
 | Piece | What it does | Code |
 |---|---|---|
-| Speed | Link's speed for the frame; in a wall: + right / - left (stick x) | `002D5ADC` (`native/compilefix/func_002D5ADC.c`) |
+| Speed | Link's speed for the frame; in a wall: + right / - left (stick x) | `002D5ADC` (`walk_update` in `native/gameplay/link_walk.c`) |
 | Owner step | Fills the walker input each frame (position, facing, step along the wall) | Link `00342C24`; Yuga `0015D6F4` |
 | Wall walker | Moves along the wall, decides free / merged / leaving, builds the strip | `001EA96C` (`native/compilefix/func_001EA96C.c`) |
 | Painting component | Owns the painting model and the render texture | `003441F0` -> `002D34B4`; setup `002D175C` |
