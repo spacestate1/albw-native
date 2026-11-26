@@ -1,6 +1,7 @@
 /* compilefix: USA 002D7168, the linked Ghidra text (ghidra_analyzed5_v4) with a lost stack store restored: the sound
  * name object {vtable, char *} was built with the vtable only (strlen of leftover stack data: BOOT_LOG 167).
- * The string "SE_PL_EVENT_SWORD_UP_AFTER_TRIFORCE" is the one the ARM code stores next to the vtable. */
+ * The string "SE_PL_EVENT_SWORD_UP_AFTER_TRIFORCE" is the one the ARM code stores next to the vtable.
+ * Also restored: three 3-float copies whose middle word (the height) was dropped (BOOT_LOG 177). */
 #include "ghidra_types.h"
 
 extern int func_00100174(int *param_1);
@@ -379,6 +380,7 @@ LAB_002d77a4:
     if (puVar7 != (undefined4 *)0x0) {
       func_00115C70((float *)&local_3c,(float *)(puVar7 + 0xf4),*(float **)(param_1 + 0x30));
       objStack_48[0] = (uint)local_3c;
+      objStack_48[1] = (uint)ALBW_AS_U32(local_38);   /* y: the converted text lost this copy (BOOT_LOG 177) */
       local_40 = ALBW_AS_F32(local_34);
       iVar13 = func_0068C690((float *)objStack_48);
       *(int *)(param_1 + 0x58) = iVar13 + -0x80000000;
@@ -488,6 +490,7 @@ LAB_002d77a4:
     pfVar11 = *(float **)(param_1 + 0x30);
     func_00115D70(&local_38,(float *)(param_1 + 0xa8),fVar15);
     objStack_48[0] = (uint)ALBW_AS_U32(local_38);
+    objStack_48[1] = (uint)(uintptr_t)local_34;   /* y (BOOT_LOG 177) */
     local_40 = local_30;
     func_00115C70(pfVar11,pfVar11,(float *)objStack_48);
     return func_004EB178(*DAT_002d74f4);
@@ -536,6 +539,7 @@ LAB_002d77a4:
     iVar13 = *(int *)(param_1 + 0x28);
     func_00115D70(&local_28,pfVar11,fVar15);
     objStack_48[0] = (uint)ALBW_AS_U32(local_28);
+    objStack_48[1] = (uint)ALBW_AS_U32(local_24);   /* y (BOOT_LOG 177) */
     local_40 = local_20;
     func_00115C54(&local_28,(float *)(iVar13 + 0x3d0),(float *)objStack_48);
     uVar12 = 0;
