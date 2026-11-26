@@ -1,7 +1,10 @@
 /* compilefix: USA 004FA174 (EU 004FA14C), the converted stage-2 text with the default case of its
  * switch inlined from the ARM; the Vec3 result (s0..s2 on ARM, BOOT_LOG 160l) is also published
  * in albw_s012 (callers read y / z from it) (the fragment "004FA420" Ghidra cut off ran on garbage registers:
- * the shield crashed, BOOT_LOG 144). Confidence: high. */
+ * the shield crashed, BOOT_LOG 144).  Arguments as on the ARM: r3 = the hit record's byte +0x20,
+ * then three on the stack. 004FA13C (built from C++) passes them so; the Ghidra callers left r3
+ * out, and this text then read that byte as the vector pointer (crash, BOOT_LOG 173): they pass r3
+ * now. Confidence: high. */
 #include "ghidra_types.h"
 
 extern int func_00115C54(float *param_1,float *param_2,float *param_3);
@@ -20,9 +23,6 @@ float *albw_s012_get(void);   /* s0..s2 of a Vec3 return, per thread (native/run
 #define albw_s012 (albw_s012_get())
 
 // USA 004FA174 <- EU 004FA14C (Ghidra, non-matching)
-// PARAM param_4 Stack[0x0]:4 float *
-// PARAM param_5 Stack[0x4]:4 int
-// PARAM param_6 Stack[0x8]:4 int
 // GLOBAL DAT_004fa4fc float
 // GLOBAL DAT_004fa500 float
 // GLOBAL DAT_004fa504 int *
@@ -30,10 +30,9 @@ float *albw_s012_get(void);   /* s0..s2 of a Vec3 return, per thread (native/run
 // GLOBAL DAT_004fa50c float
 // GLOBAL DAT_004fa5e8 float
 
-float func_004FA174(float *param_1,int param_2,int param_3,float *param_4,int param_5,int param_6)
+float func_004FA174(float *param_1,int param_2,int param_3,uint in_r3,float *param_4,int param_5,int param_6)
 
 {
-  int in_r3;
   float *pfVar1;
   int iVar2;
   bool bVar3;
@@ -211,9 +210,7 @@ code_r0x004fa3f8:
     break;
   default:
     /* EU 4FA3F8..4FA42C (Ghidra split this case off as "004FA420"; it runs on this frame and
-     * r4 = param_1, r5 = the first stack argument = the caller's Vec3 *, which the converted callers
-     * pass as param_4 - their argument lists are shifted against the ARM (EU 4F8EE0..4F8EEC: r3 = a
-     * byte, [sp] = Vec3 *, [sp+4], [sp+8]) but agree with this text): d = *param_1 - *r5,
+     * r4 = param_1, r5 = param_4, the first stack argument): d = *param_1 - *param_4,
      * {d.x, 0, d.z} normalised (BOOT_LOG 144) */
     func_00115C70(&local_68,param_1,param_4);
     local_58 = local_68;

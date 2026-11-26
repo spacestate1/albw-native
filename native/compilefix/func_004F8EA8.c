@@ -12,7 +12,7 @@ extern float func_00115DC8(float *param_1);
 extern int func_002ABDE8(undefined4 *param_1,uint param_2,int param_3,undefined4 *param_4, undefined1 param_5,undefined4 param_6,int param_7);
 extern int func_004F5390(undefined4 *param_1,int param_2,undefined4 *param_3,undefined1 param_4, undefined4 param_5,float fparam_0);
 extern int func_004F5494(undefined4 *param_1);
-extern float func_004FA174(float *param_1,int param_2,int param_3,float *param_4,int param_5,int param_6);
+extern float func_004FA174(float *param_1,int param_2,int param_3,uint in_r3,float *param_4,int param_5,int param_6);
 extern int func_00542AE4(int param_1,uint param_2);
 extern undefined4 *DAT_004f91e8;
 extern float DAT_004f91ec;
@@ -95,8 +95,9 @@ bool func_004F8EA8(int *param_1,uint param_2,float *param_3)
     uVar9 = 0;
   }
   iVar5 = (int)*(char *)(iVar8 + 0x21);
+  uint hit_byte = *(byte *)(iVar8 + 0x20);   /* r9, EU 4F8ED0 */
   uVar1 = *(uint *)(iVar8 + 0x38) >> 0x1c;
-  local_7c = func_004FA174((float *)(param_1 + 0xf4),iVar8,param_2,param_3,iVar5,uVar1);
+  local_7c = func_004FA174((float *)(param_1 + 0xf4),iVar8,param_2,hit_byte,param_3,iVar5,uVar1);
   local_78 = albw_s012[1];   /* Vec3 return: s1 / s2 */
   local_74 = albw_s012[2];
   local_70 = *DAT_004f91e8;
@@ -255,7 +256,7 @@ LAB_004f9218:
 switchD_004f91cc_default:
   if (uVar6 != 0x21) {
     if (param_2 != uVar6) {
-      fVar12 = func_004FA174((float *)(param_1 + 0xf4),param_1[0x10f],uVar6,param_3,iVar5,uVar1);
+      fVar12 = func_004FA174((float *)(param_1 + 0xf4),param_1[0x10f],uVar6,hit_byte,param_3,iVar5,uVar1);
       fVar13 = albw_s012[1];   /* Vec3 return: s1 / s2 */
       in_s2 = albw_s012[2];
       local_7c = fVar12;
