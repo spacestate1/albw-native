@@ -97,8 +97,6 @@ void *albw_debug_spawn(const char *name, float dx, float dz) {
     *(uint32_t *)(sp + 0x4C) = 0;
     *(int16_t *)(sp + 0x50) = -1;
     *(uint32_t *)(sp + 0x2C0) |= 1;
-    *(int32_t *)(sp + 0x29C) = -1;   /* no rail, as the stage's own actors have it (0 = the first rail) */
-    *(int32_t *)(sp + 0x2A0) = -1;
     int full = 1;
     for (int i = 0; i < SPAWNED_MAX; i++) if (!g_spawned[i].actor) full = 0;
     if (full) { fprintf(stderr, "spawn: %s: too many spawned already\n", name); return NULL; }
