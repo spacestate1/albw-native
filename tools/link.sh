@@ -64,7 +64,9 @@ for f in native/platform/platform.c native/platform/drmlease.c native/platform/l
     o=$NOBJ/${f%.c}.o
     mkdir -p "$(dirname "$o")"
     EXTRA=()
-    [[ "$f" == native/game/* || "$f" == native/robust/* || "$f" == native/gameplay/* || "$f" == native/compilefix/* || "$f" == native/framework/* || "$f" == native/core/* || "$f" == native/hot/* || "$f" == native/route/* ]] && EXTRA=(-DALBW_LINK_GAME_003E6AA8 -DALBW_V4 -Inative/route -Inative/robust -Inative/gameplay -Inative/compilefix -Inative/framework -Inative/core -Inative/hot -include native/albw_native.h -I$DEC/shared/include -I../albw-decomp-ai/shared/include -w -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types -Wno-error=incompatible-function-pointer-types -Wno-error=return-type)  # decompiled code only
+    # decompiled code is built as tools/build_decomp.py builds the converted objects (-fwrapv, locals start at 0:
+    # a value the converter never set reads as 0, not as leftover stack data; BOOT_LOG 182)
+    [[ "$f" == native/game/* || "$f" == native/robust/* || "$f" == native/gameplay/* || "$f" == native/compilefix/* || "$f" == native/framework/* || "$f" == native/core/* || "$f" == native/hot/* || "$f" == native/route/* ]] && EXTRA=(-DALBW_LINK_GAME_003E6AA8 -DALBW_V4 -Inative/route -Inative/robust -Inative/gameplay -Inative/compilefix -Inative/framework -Inative/core -Inative/hot -include native/albw_native.h -I$DEC/shared/include -I../albw-decomp-ai/shared/include -w -Wno-error=implicit-function-declaration -Wno-error=int-conversion -Wno-error=incompatible-pointer-types -Wno-error=incompatible-function-pointer-types -Wno-error=return-type -fwrapv -ftrivial-auto-var-init=zero)  # decompiled code only
     # sound: the real nn::snd layer (native/sdk/snd.c + native/audio) by default; with
     # ALBW_REAL_SND=0 the silent stopgap in snd_silent.c instead (its dsp:: part is always used)
     if [[ "${ALBW_REAL_SND:-1}" == 0 && ( "$f" == native/sdk/snd.c || "$f" == native/audio/* ) ]]; then continue; fi
@@ -73,7 +75,7 @@ for f in native/platform/platform.c native/platform/drmlease.c native/platform/l
         rm -f "$o"
     fi
     stale=0
-    [[ -f "$o" && "$o" -nt "$f" ]] || stale=1
+    [[ -f "$o" && "$o" -nt "$f" && ( ${#EXTRA[@]} == 0 || "$o" -nt tools/link.sh ) ]] || stale=1
     # platform.c #includes layout.c, input.c, menu.c (+ menu_font.h): rebuild when any changed
     if [[ "$f" == native/platform/platform.c && $stale == 0 ]]; then
         for inc in native/platform/{layout,input,menu,selector,debugtools}.c native/platform/{menu_font,layout,gl,selector_img,drmlease,debug_enemies}.h native/render/render.h; do [[ "$inc" -nt "$o" ]] && stale=1; done

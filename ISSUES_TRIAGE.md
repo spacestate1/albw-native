@@ -9,17 +9,17 @@ Last updated: 2026-11-26. Pull requests: #15 merged; #16 first commit (ARM build
 
 | # | Title | Kind | Status |
 |---|---|---|---|
-| 14 | No way to choose the game language | feature | **fixed in master**: Esc > File > Language, `language` line in layout.cfg, follows the computer's language, README |
-| 13 | Game won't start (two reports: crash, freeze) | Windows hang / crash | hang cause found and fixed in master (thread-exit destructors); crash in `func_001E06D0` open |
+| 14 | No way to choose the game language | feature | closed 2026-11-26 (in v0.2.15 and later: Esc > File > Language, `language` line in layout.cfg, follows the computer's language) |
+| 13 | Game won't start (two reports: crash, freeze) | Windows hang / crash | closed by the reporter 2026-11-26 (their copy of the game); the freeze fix is in v0.2.15 |
 | 12 | Crash after file selection screen | Windows hang | same cause as 13 / 10 / 7; fixed in master |
 | 11 | Steam Deck AppImage will not open after failed .3ds import | Linux | **fixed in master**: a file the game cannot use is forgotten, with a clear message |
 | 10 | Black screen after naming the file, Windows | Windows hang | same cause; fixed in master (waiting for a confirming log) |
 | 9 | Version number in the AppImage | request | closed |
 | 8 | Cannot start from Game Mode (SteamOS) | closed | closed |
-| 7 | Cannot start the game (Windows, freeze at boot) | Windows | boot freeze fixed in v0.2.11; the later freeze is the thread-exit bug |
+| 7 | Cannot start the game (Windows, freeze at boot) | Windows | closed 2026-11-26: the reporter can play (boot freeze fixed in v0.2.11, the later freeze in v0.2.15) |
 | 6 | Launcher and portable installation | request | portable mode done (v0.2.7); two Windows faults reported with it fixed in v0.2.17 (below); launcher window not built |
 | 5 | Port does not use the dGPU on Linux | closed | closed |
-| 4 | Texture pack support | request | done in v0.2.13 (needs a pack with the new hash) |
+| 4 | Texture pack support | request | closed 2026-11-26: done in v0.2.13 (needs a pack with the new hash) |
 | 3 | 120+ FPS | request | not started |
 | 2 | ARM64 Linux build | request | 32-bit ARM (armhf) build merged from pull request #16 and the AYN Thor panel from #18 (not tested on ARM by us) |
 | 1 | Stereoscopic 3D with texture packs | request | not started |
