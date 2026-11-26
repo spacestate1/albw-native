@@ -9,7 +9,9 @@
  *    EU 001EEA30..001EEA64 (caller 001EA96C) and 0064399C..006439D8 (the call to itself).
  * Confidence: high for the fixes (each class checked against the EU disassembly on sample sites);
  * the function body otherwise has the fidelity of the Ghidra output (bare `return;` exits of
- * functions retyped non-void return 0, as the converter does). */
+ * functions retyped non-void return 0, as the converter does).
+ * Fixed (BOOT_LOG 184): the ARM compares the float's bits (vmov rX, sY; cmp), which the converted text
+ * wrote as a conversion of the value to an integer. */
 #include "ghidra_types.h"
 #include "../include/ghidra_concat44.h"
 #include "compilefix.h"
@@ -1237,8 +1239,8 @@ undefined4 func_0064268C(float ***********arg_r0,int arg_r1,int arg_r2,float fpa
       if (ppppppppppfVar9 < ppppppppppfVar17) {
         ppppppppppfVar22 = ppppppppppfVar22 + (int)ppppppppppfVar9 * 0x27;
       }
-      if ((0xb4000000 < (uint)(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar22[0x1d]))) ||
-         (0x34000000 < (int)(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar22[0x1d])))) {
+      if ((0xb4000000 < (uint)ALBW_AS_U32(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar22[0x1d]))) ||
+         (0x34000000 < (int)ALBW_AS_U32(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar22[0x1d])))) {
         if (ppppppppppfVar9 < ppppppppppfVar17) {
           ppppppppppfVar41 = pppppppppppfVar29[0x2b] + (int)ppppppppppfVar9 * 0x27;
         }
@@ -1513,8 +1515,8 @@ LAB_00644988:
         ppppppppppfVar41 = pppppppppppfVar29[2];
         ppppppppppfVar17 = pppppppppppfVar29[2];
       }
-      if ((0xb4000000 < (uint)(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar17[0x1d]))) ||
-         (0x34000000 < (int)(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar17[0x1d])))) {
+      if ((0xb4000000 < (uint)ALBW_AS_U32(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar17[0x1d]))) ||
+         (0x34000000 < (int)ALBW_AS_U32(ALBW_AS_F32(ppppppppppfVar41[0x1c]) - ALBW_AS_F32(ppppppppppfVar17[0x1d])))) {
         if (ppppppppppfVar9 < *pppppppppppfVar29) {
           ppppppppppfVar41 = pppppppppppfVar29[2] + (int)ppppppppppfVar9 * 0x27;
         }

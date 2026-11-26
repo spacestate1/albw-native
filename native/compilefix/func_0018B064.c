@@ -5,7 +5,9 @@
  *  - explicit casts at pointer-type mismatches (identity on the ARM) [1]
  * Confidence: high for the fixes (each class checked against the EU disassembly on sample sites);
  * the function body otherwise has the fidelity of the Ghidra output (bare `return;` exits of
- * functions retyped non-void return 0, as the converter does). */
+ * functions retyped non-void return 0, as the converter does).
+ * Fixed (BOOT_LOG 184): the ARM compares the float's bits (vmov rX, sY; cmp), which the converted text
+ * wrote as a conversion of the value to an integer. */
 #include "ghidra_types.h"
 #include "../include/ghidra_concat44.h"
 #include "compilefix.h"
@@ -175,7 +177,7 @@ void func_0018B064(uint param_1)
   fVar10 = (float)VectorSignedToFloat(*(undefined4 *)(param_1 + 0x528),(byte)(in_fpscr >> 0x15) & 3)
   ;
   local_100 = DAT_0018b390;
-  if ((int)(fVar10 * DAT_0018b390) < 0x3f800000) {
+  if ((int)ALBW_AS_U32(fVar10 * DAT_0018b390) < 0x3f800000) {
     local_100 = (DAT_0018b398 + fVar10 * DAT_0018b390 * DAT_0018b394) * DAT_0018b390;
   }
   local_120 = *(undefined4 *)(param_1 + 0x2cc);

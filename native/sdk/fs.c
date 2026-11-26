@@ -347,6 +347,29 @@ static int mkdir_p(const char *path) {
 }
 
 /* fs_lock held */
+/* A save folder that cannot be written ends in the game's own error screen (err:f CACA0005), which does
+ * not say why: say why here. A folder that already holds a game and is only read-only still starts, with
+ * a warning. */
+static void check_save_root(const char *root) {
+    struct stat st;
+    if (stat(root, &st) != 0 || !S_ISDIR(st.st_mode))
+        runtime_fatal("fs: the save directory '%s' is not a folder", root);
+    char p[PATH_MAX];
+    if (snprintf(p, sizeof p, "%s/.write-test", root) >= (int)sizeof p)
+        return;
+    int fd = open(p, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd >= 0) {
+        close(fd);
+        unlink(p);
+        return;
+    }
+    int err = errno;
+    snprintf(p, sizeof p, "%s/savedata.format", root);
+    if (stat(p, &st) != 0)
+        runtime_fatal("fs: cannot write to the save directory '%s' (%s)", root, strerror(err));
+    fs_warn("cannot write to the save directory %s (%s): the game will not be able to save", root, strerror(err));
+}
+
 static const char *save_root_locked(void) {
     if (save_root[0])
         return save_root;
@@ -366,6 +389,7 @@ static const char *save_root_locked(void) {
     if (mkdir_p(save_root) != 0)
         runtime_fatal("fs: cannot create the save directory '%s' (%s)", save_root,
                       strerror(errno));
+    check_save_root(save_root);
     fs_log("save directory %s", save_root);
     return save_root;
 }

@@ -2,7 +2,9 @@
  * (BOOT_LOG 175): the block at EU 350038 (taken when the byte +0x22A is 2) is part of this function,
  * but Ghidra called it as a function of its own, `return func_0035005C(2, x)`, reading the caller's
  * registers and stack: crash (found by random play in a Hyrule cave). It turns +0x2C towards +0x30
- * at the rate of DAT_003501C4 once the byte +0x22B reaches 5, else falls into the following chain. */
+ * at the rate of DAT_003501C4 once the byte +0x22B reaches 5, else falls into the following chain.
+ * Fixed (BOOT_LOG 184): the ARM compares the float's bits (vmov rX, sY; cmp), which the converted text
+ * wrote as a conversion of the value to an integer. */
 // MAPFIX-INTEGRATED v1
 #include "ghidra_types.h"
 
@@ -1113,7 +1115,7 @@ LAB_00350da4:
                        *(float *)(param_1 + 0x298) * *(float *)(param_1 + 0x298)))) {
       *(undefined4 *)(param_1 + 0x108) = *(undefined4 *)(param_1 + 0x10c);
     }
-    if ((int)*(float *)(param_1 + 0x108) < 0x3f800000) {
+    if ((int)ALBW_AS_U32(*(float *)(param_1 + 0x108)) < 0x3f800000) {
       uVar11 = uVar5 & 0xfffffff;
       uVar5 = uVar11 | (uint)(*(float *)(param_1 + 0x2cc) <= fVar25) << 0x1d;
       if (!SUB41(uVar5 >> 0x1d,0)) {

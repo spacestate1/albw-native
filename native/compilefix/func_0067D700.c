@@ -79,7 +79,7 @@ void func_0067D700(float *param_1,float *param_2,float fparam_0)
   uVar15 = uVar1 | (uint)(fparam_0 == DAT_0067da3c) << 0x1e |
            (uint)(DAT_0067da3c <= fparam_0) << 0x1d;
   puVar11 = (ushort *)((uint)*(ushort *)((int)param_1 + 0xe) * 6 + -6 + (int)ALBW_AS_U32(fVar12));
-  uVar19 = (uint)((fparam_0 / param_1[6]) * DAT_0067da40);
+  uVar19 = (uint)(int)((fparam_0 / param_1[6]) * DAT_0067da40);   /* vcvt.s32: may be negative */
   bVar7 = (byte)(uVar15 >> 0x18);
   bVar13 = (bool)(bVar7 >> 6);
   bVar14 = false;

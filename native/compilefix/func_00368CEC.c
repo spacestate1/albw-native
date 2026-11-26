@@ -6,7 +6,9 @@
  *    pool word, e.g. `fVar = _DAT_xxx;`, `puVar[3] = fVar;`) made bit copies [2]
  * Confidence: high for the fixes (each class checked against the EU disassembly on sample sites);
  * the function body otherwise has the fidelity of the Ghidra output (bare `return;` exits of
- * functions retyped non-void return 0, as the converter does). */
+ * functions retyped non-void return 0, as the converter does).
+ * Fixed (BOOT_LOG 184): the ARM compares the float's bits (vmov rX, sY; cmp), which the converted text
+ * wrote as a conversion of the value to an integer. */
 #include "ghidra_types.h"
 #include "compilefix.h"
 
@@ -291,7 +293,7 @@ LAB_00369080:
             pfVar9 = pfVar9 + uVar16;
           }
           fVar22 = (float)VectorSignedToFloat(iVar10,(byte)(uVar17 >> 0x15) & 3);
-          if (((uint)(*pfVar9 - fVar22) <= (uint)ALBW_AS_U32(fVar30)) && ((int)(*pfVar9 - fVar22) <= iVar8))
+          if (((uint)ALBW_AS_U32(*pfVar9 - fVar22) <= (uint)ALBW_AS_U32(fVar30)) && ((int)ALBW_AS_U32(*pfVar9 - fVar22) <= iVar8))
           goto joined_r0x003690c0;
         }
         else {

@@ -153,7 +153,7 @@ static float decode(Voice *v, const AudWaveBuf *b, uint32_t pos) {
         int byte = frame[1 + i / 2];
         int nib = (i & 1) ? (byte & 0xF) : (byte >> 4);
         if (nib >= 8) nib -= 16;
-        int32_t s = (((nib * scale) << 11) + 1024 +
+        int32_t s = ((nib * scale * 2048) + 1024 +   /* multiplied: nib may be negative */
                      v->coefs[pi * 2] * v->yn1 + v->coefs[pi * 2 + 1] * v->yn2) >> 11;
         if (s > 32767) s = 32767;
         if (s < -32768) s = -32768;

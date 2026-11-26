@@ -2,7 +2,9 @@
  * of a value with float constants (vmov rX, sY; cmp - signed against a positive constant,
  * unsigned against a negative one), which Ghidra wrote as (int)(v) / (uint)(v) conversions.
  * On x86 (uint)(-1.0f) is 0xFFFFFFFF, so small negative values passed the test. Now the
- * float comparisons the bit tests mean (5). Confidence: high (EU code bytes). */
+ * float comparisons the bit tests mean (5). Confidence: high (EU code bytes).
+ * Fixed (BOOT_LOG 184): the ARM compares the float's bits (vmov rX, sY; cmp), which the converted text
+ * wrote as a conversion of the value to an integer. */
 #include "ghidra_types.h"
 
 extern int func_00100174(int *param_1);
@@ -245,7 +247,7 @@ void func_002569FC(int param_1,int param_2,float *param_3,undefined4 param_4,uin
           fVar16 = fVar16 + ALBW_AS_F32(uVar15);
         }
         else {
-          if ((uint)(local_b4 - fVar16) <= (uint)ALBW_AS_U32(DAT_00256e14)) {
+          if ((uint)ALBW_AS_U32(local_b4 - fVar16) <= (uint)ALBW_AS_U32(DAT_00256e14)) {
             *param_6 = local_b4;
             goto LAB_00256dcc;
           }
@@ -312,7 +314,7 @@ LAB_00256f3c:
         fVar13 = fVar13 + DAT_002570d4;
       }
       else {
-        if ((uint)(local_ac - fVar13) <= (uint)ALBW_AS_U32(DAT_002570dc)) {
+        if ((uint)ALBW_AS_U32(local_ac - fVar13) <= (uint)ALBW_AS_U32(DAT_002570dc)) {
           param_6[2] = local_ac;
           goto LAB_00256f94;
         }
@@ -335,7 +337,7 @@ LAB_00256fb0:
       fVar16 = fVar16 + DAT_002570e4;
     }
     else {
-      if ((uint)(local_b0 - fVar16) <= (uint)ALBW_AS_U32(DAT_002570e8)) goto LAB_00256fb0;
+      if ((uint)ALBW_AS_U32(local_b0 - fVar16) <= (uint)ALBW_AS_U32(DAT_002570e8)) goto LAB_00256fb0;
       fVar16 = fVar16 - DAT_002570e4;
     }
     param_6[3] = fVar16;

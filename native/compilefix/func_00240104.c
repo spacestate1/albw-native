@@ -3,6 +3,8 @@
  * which Ghidra sized as 7 floats. The two words past it are other locals or saved registers (caught
  * as "stack smashing detected" in the armhf build, scripted new game at frame ~4210).
  * Fixed: afStackY_34 [9]. The rest is the converted Ghidra text.
+ * Fixed: the vector the matrix rotates was three separate C locals, so its y and z were whatever lay
+ * beside x (found by AddressSanitizer; EU: vstmia sp, {s0, s1} + vstr s0, [sp, #8]; BOOT_LOG 183).
  * Confidence: high (func_004D7E0C's body writes param_1[0] to param_1[8]). */
 #include "ghidra_types.h"
 
@@ -34,9 +36,7 @@ undefined4 func_00240104(int param_1)
   float *pfVar4;
   uint in_fpscr;
   float fparam_0;
-  float fStackY_40;
-  float fStackY_3c;
-  float fStackY_38;
+  float offset[3];   /* one vector: three consecutive stack words in the ARM code */
   float afStackY_34 [9];   /* a 3x3 matrix (func_004D7E0C) */
   
   uVar1 = *(uint *)(*(int *)(param_1 + 0x428) + *(char *)(param_1 + 0x410) * 8 + 4);
@@ -64,16 +64,16 @@ undefined4 func_00240104(int param_1)
     return func_004CF478(*(int *)(param_1 + 0x430),0);
   }
   func_004CF478(*(int *)(param_1 + 0x430),1);
-  fStackY_3c = *(float *)(*(int *)(param_1 + 0x434) + 0x58) * fRam002402b0;
-  fStackY_40 = fRam002402b4;
-  fStackY_38 = fRam002402b4;
+  offset[1] = *(float *)(*(int *)(param_1 + 0x434) + 0x58) * fRam002402b0;
+  offset[0] = fRam002402b4;
+  offset[2] = fRam002402b4;
   func_004D7E0C(afStackY_34,*(uint *)(param_1 + 0x20),*(uint *)(param_1 + 1000));
-  func_00115CE4(&fStackY_40,afStackY_34,&fStackY_40);
-  func_00115C54(&fStackY_40,&fStackY_40,(float *)(param_1 + 0x3d0));
+  func_00115CE4(offset,afStackY_34,offset);
+  func_00115C54(offset,offset,(float *)(param_1 + 0x3d0));
   iVar2 = *(int *)(param_1 + 0x434);
-  *(float *)(iVar2 + 4) = fStackY_40;
-  *(float *)(iVar2 + 8) = fStackY_3c;
-  *(float *)(iVar2 + 0xc) = fStackY_38;
+  *(float *)(iVar2 + 4) = offset[0];
+  *(float *)(iVar2 + 8) = offset[1];
+  *(float *)(iVar2 + 0xc) = offset[2];
   return func_004356B4(*(int **)(param_1 + 0x434));
 }
 

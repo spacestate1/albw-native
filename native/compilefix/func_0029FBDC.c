@@ -1,5 +1,7 @@
 /* compilefix: func_0029FBDC, the converted stage-2 text (build/decomp/ghidra_fallback/ghidra_analyzed5_v4/002/func_0029FBDC.c) with inlined two-sided approaches
- * restored (tools/approach_fix.py, BOOT_LOG 150). */
+ * restored (tools/approach_fix.py, BOOT_LOG 150).
+ * Fixed (BOOT_LOG 184): the ARM copies this word between a float and an integer (no vcvt), which the
+ * converted text wrote as a conversion of the value. */
 // MAPFIX-INTEGRATED v1
 #include "ghidra_types.h"
 
@@ -164,7 +166,7 @@ undefined4 func_0029FBDC(int *param_1,uint param_2,float fparam_0,float fparam_1
       fVar8 = ALBW_AS_F32(param_1[0x248]);
       if ((uint)param_1[0x247] < (uint)ALBW_AS_U32(fVar8)) {
         bVar13 = fVar8 != 0.0;
-        fVar10 = (float)(param_1[0x247] + 1);
+        fVar10 = ALBW_AS_F32(param_1[0x247] + 1);
         if (bVar13) {
           fparam_0 = fVar10;
         }

@@ -1,6 +1,8 @@
 /* USA 001E4D1C: converted Ghidra text with one fix (160bg): range tests that compare the float
  * BITS of a value with float constants (vmov rX, sY; cmp) were written as (int)(v) / (uint)(v)
- * conversions; on x86 (uint)(-1.0f) is 0xFFFFFFFF. Now the float comparisons they mean. */
+ * conversions; on x86 (uint)(-1.0f) is 0xFFFFFFFF. Now the float comparisons they mean.
+ * Fixed (BOOT_LOG 184): the ARM compares the float's bits (vmov rX, sY; cmp), which the converted text
+ * wrote as a conversion of the value to an integer. */
 // MAPFIX-INTEGRATED v1
 #include "ghidra_types.h"
 
@@ -96,7 +98,7 @@ undefined4 func_001E4D1C(ushort *param_1,int param_2,char param_3,float *param_4
       fStack_3c = pfVar5[2];
       /* below the limit? (ARM: unsigned bit compare with -1.0f) */
       if (((((local_40 - param_4[1]) < ALBW_AS_F32(DAT_001e50a8))) ||
-          (0x3f800000 < (int)(local_40 - param_4[1]))) ||
+          (0x3f800000 < (int)ALBW_AS_U32(local_40 - param_4[1]))) ||
          (DAT_001e50ac <
           (int)ALBW_AS_U32(((local_44 - *param_4) * (local_44 - *param_4) +
                (fStack_3c - param_4[2]) * (fStack_3c - param_4[2]))))) {

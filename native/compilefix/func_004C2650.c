@@ -5,7 +5,9 @@
  *  - explicit casts at pointer-type mismatches (identity on the ARM) [3]
  * Confidence: high for the fixes (each class checked against the EU disassembly on sample sites);
  * the function body otherwise has the fidelity of the Ghidra output (bare `return;` exits of
- * functions retyped non-void return 0, as the converter does). */
+ * functions retyped non-void return 0, as the converter does).
+ * Fixed (BOOT_LOG 184): the ARM copies this word between a float and an integer (no vcvt), which the
+ * converted text wrote as a conversion of the value. */
 #include "ghidra_types.h"
 #include "compilefix.h"
 
@@ -147,7 +149,7 @@ undefined4 func_004C2650(int *param_1)
   }
   pcVar13 = pcVar12;
   if ((ALBW_AS_F32(pcVar12) <= ALBW_AS_F32(pcVar15)) &&
-     (pcVar13 = pcVar15, (float)param_1[0x15f] < ALBW_AS_F32(pcVar15))) {
+     (pcVar13 = pcVar15, ALBW_AS_F32(param_1[0x15f]) < ALBW_AS_F32(pcVar15))) {
     pcVar13 = (char *)param_1[0x15f];
   }
   fVar11 = fVar8 + ALBW_AS_F32(pcVar13);

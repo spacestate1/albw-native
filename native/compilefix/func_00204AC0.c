@@ -4,7 +4,9 @@
  *  - (T *)<float expr> -> (T *)CF_FBITS(expr): 32-bit copy of the float (vmov/vstr), never a conversion [2]
  * Confidence: high for the fixes (each class checked against the EU disassembly on sample sites);
  * the function body otherwise has the fidelity of the Ghidra output (bare `return;` exits of
- * functions retyped non-void return 0, as the converter does). */
+ * functions retyped non-void return 0, as the converter does).
+ * Fixed (BOOT_LOG 184): the ARM copies this word between a float and an integer (no vcvt), which the
+ * converted text wrote as a conversion of the value. */
 #include "ghidra_types.h"
 #include "compilefix.h"
 
@@ -113,8 +115,8 @@ void func_00204AC0(int *param_1)
   *(undefined1 *)(param_1 + 0x232) = 0;
   pfVar5 = (float *)param_1[0x243];
   pfVar3 = pfVar5 + (char)param_1[0x23d] * 2;
-  piVar4 = (int *)(param_1[0x241] + ((int)pfVar5[(char)param_1[0x23d] * 2 + 1] >> 1));
-  if (((uint)pfVar5[(char)param_1[0x23d] * 2 + 1] & 1) != 0) {
+  piVar4 = (int *)(param_1[0x241] + ((int)ALBW_AS_U32(pfVar5[(char)param_1[0x23d] * 2 + 1]) >> 1));
+  if (((uint)ALBW_AS_U32(pfVar5[(char)param_1[0x23d] * 2 + 1]) & 1) != 0) {
     pfVar3 = (float *)((int)ALBW_AS_U32(*pfVar3) + *piVar4);
   }
   (*(code *)CF_FBITS(*pfVar3))(piVar4);
