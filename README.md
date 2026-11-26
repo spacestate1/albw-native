@@ -157,6 +157,17 @@ set** (press it twice). The current save files are backed up to `save-backup/<ti
 differ from the set), the set is copied in and the game restarts, so every attempt starts from the
 same files.
 
+## Debug tools
+
+Esc > **Debug** has the port's own test tools (the retail game has no debug menu):
+
+- **Warp**: pick an area and a room, then **Warp there**. Link appears at the room's first entry point.
+- **Enemy**: pick one of the enemies the current room has the data for, then **Spawn it next to Link**.
+- Logging, particles, fog, frame rate in the title bar and game speed.
+
+Warping and spawning can leave the story in an odd state: make a save state (F6) first, and do not
+save the game afterwards on a file you care about.
+
 ## Reporting a problem
 
 Press Esc in the game, then **Help > Copy log to clipboard** and paste it (Ctrl+V) into a new
