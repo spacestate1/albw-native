@@ -91,6 +91,12 @@ static atomic_int g_ss_phase;   /* 0 run, 1 every game thread parks at its next 
 static void ss_park(pthread_mutex_t *held);
 static void ss_thread_register(int slot, uintptr_t base);
 static int slot_thread_create(pthread_t *pt, void *(*fn)(void *), void *arg, int *slot_out);
+#ifdef ALBW_WINDOWS
+static void slot_pin_tls(int slot);   /* see its definition: thread-local variables at fixed addresses */
+#define PINNED_ENTRY __attribute__((noinline))   /* nothing of the entry runs before the pin */
+#else
+#define PINNED_ENTRY
+#endif
 static void slot_attach(int slot);
 static void ss_thread_finished(void);
 
@@ -751,7 +757,7 @@ static void slot_attach(int slot) {
     t_wp = (Waiter *)((uint8_t *)data + 0x200);
 }
 
-static void *thread_main(void *p) {
+static PINNED_ENTRY void *thread_main(void *p) {
     /* the saved part of this thread's stack ends here (above: the libc thread start) */
     uintptr_t base = (uintptr_t)__builtin_frame_address(0);
     OsObject *o = p;
@@ -772,6 +778,15 @@ static void *thread_main(void *p) {
      * run (callee-saved registers restored from the saved frames) */
     pthread_exit(NULL);
 }
+#ifdef ALBW_WINDOWS
+static void *thread_main_pinned(void *p) {
+    slot_pin_tls(((OsObject *)p)->u.th.slot);
+    return thread_main(p);
+}
+#define THREAD_MAIN thread_main_pinned
+#else
+#define THREAD_MAIN thread_main
+#endif
 
 /* USA 00103C80  nn::svc::CreateThread(Handle *out, ThreadFunc entry, uintptr_t arg,
  *               uintptr_t stackTop, s32 priority, s32 core) -> Result
@@ -810,7 +825,7 @@ uint32_t func_00103C80(uint32_t *out, void (*entry)(void *), uintptr_t arg, uint
     pthread_once(&g_thread_key_once, thread_key_init);
     pthread_t pt;
     o->u.th.slot = -1;
-    int err = slot_thread_create(&pt, thread_main, o, &o->u.th.slot);
+    int err = slot_thread_create(&pt, THREAD_MAIN, o, &o->u.th.slot);
     if (err) {
         if (o->u.th.sched) {        /* never ran: take it off the ready list / the core */
             SchedRec *sr = o->u.th.sched;
@@ -1684,6 +1699,28 @@ static struct { bool used; bool joinable; pthread_t pt; } g_slots[MAX_SLOTS];   
 static bool g_slots_volatile;   /* a thread had no fixed slot: states cannot be written to disk */
 void albw_os_ss_release_all(void);
 
+#ifdef ALBW_WINDOWS
+/* Windows: thread-local variables are emulated and would live at addresses that differ in every run,
+ * while saved stacks hold such addresses (a state loaded after a restart crashed in ss_park: GitHub
+ * issue 6). A game thread moves its copies into its slot data before anything else uses them, hence
+ * the entry wrappers. Slot data: TLS block at 0, wait record at 0x200, these from 0x400. */
+void albw_emutls_pin(void *current, void *fixed, size_t size);
+size_t albw_intrinsics_pin_tls(uint8_t *at);
+static __attribute__((noinline)) void slot_pin_tls(int slot) {
+    void *data = NULL;
+    if (slot < 0 || !pmem_stack_slot(slot, NULL, &data)) return;
+    uint8_t *at = (uint8_t *)data + 0x400;
+    at += albw_intrinsics_pin_tls(at);
+    albw_emutls_pin(&t_id, at, sizeof t_id);
+    albw_emutls_pin(&t_self, at + 16, sizeof t_self);
+    albw_emutls_pin(&t_sched, at + 32, sizeof t_sched);
+    albw_emutls_pin(&t_wp, at + 48, sizeof t_wp);
+    albw_emutls_pin(&t_ss, at + 64, sizeof t_ss);
+    albw_emutls_pin(&t_waiter_local, at + 80, sizeof t_waiter_local);
+}
+void albw_os_pin_main_tls(void) { slot_pin_tls(0); }
+#endif
+
 /* start fn(arg) on a free fixed stack slot (a finished thread's slot is reused once it is joined) */
 static int slot_thread_create(pthread_t *pt, void *(*fn)(void *), void *arg, int *slot_out) {
     pthread_attr_t attr;
@@ -1979,7 +2016,7 @@ int albw_os_ss_check(SsBuf *b, char *why, size_t whylen) {
 
 typedef struct { int slot; const SsCap *cap; SsThr *t; atomic_int ready; } Vessel;
 
-static void *vessel_main(void *p) {
+static PINNED_ENTRY void *vessel_main(void *p) {
     uintptr_t base = (uintptr_t)__builtin_frame_address(0);
     Vessel *v = p;
     slot_attach(v->slot);
@@ -1991,6 +2028,15 @@ static void *vessel_main(void *p) {
     atomic_store(&v->ready, 1);
     albw_ctx_run_on(t->alt + SS_ALT_STACK, ss_restore_tramp, t);
 }
+#ifdef ALBW_WINDOWS
+static void *vessel_main_pinned(void *p) {
+    slot_pin_tls(((Vessel *)p)->slot);
+    return vessel_main(p);
+}
+#define VESSEL_MAIN vessel_main_pinned
+#else
+#define VESSEL_MAIN vessel_main
+#endif
 
 /* after the arena and game memory were restored; b at the os part (checked) */
 void albw_os_ss_load(SsBuf *b) {
@@ -2062,7 +2108,7 @@ void albw_os_ss_load(SsBuf *b) {
         pthread_attr_setstack(&attr, lo, (size_t)(top - (uint8_t *)lo));
         pthread_t pt;
         pthread_mutex_unlock(&g_ss_m);   /* the vessel registers itself */
-        int err = pthread_create(&pt, &attr, vessel_main, &v);
+        int err = pthread_create(&pt, &attr, VESSEL_MAIN, &v);
         pthread_attr_destroy(&attr);
         if (err) runtime_fatal("savestate: cannot start a thread for slot %d", k);
         while (!atomic_load(&v.ready)) { struct timespec ts = {0, 100000}; nanosleep(&ts, NULL); }

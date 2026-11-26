@@ -52,4 +52,19 @@ void *__emutls_get_address(EmuControl *c) {
     }
     return arr[i];
 }
+
+/* Move this thread's copy of a variable (current = its address now) to `fixed`. A save state holds
+ * the game threads' stacks, and the compiler keeps variable addresses on them: a game thread's copies
+ * must sit at the same address in every run (its stack slot's data, runtime/pmem.c), as the Linux
+ * thread-local block does. Call before the thread's other code computes the address. */
+void albw_emutls_pin(void *current, void *fixed, size_t size) {
+    void **arr = pthread_getspecific(g_key);
+    size_t n = arr ? (size_t)(uintptr_t)arr[0] : 0;
+    for (size_t i = 1; i < n; i++)
+        if (arr[i] == current) {
+            if (current != fixed) memmove(fixed, current, size);
+            arr[i] = fixed;
+            return;
+        }
+}
 #endif

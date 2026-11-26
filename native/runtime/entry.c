@@ -125,6 +125,9 @@ static int game_main(void *p) {
     albw_fp_set_3ds_mode();
     /* this is the game's main thread: it owns the app core from here on (native/sdk/os.md,
      * "App-core scheduling"; ALBW_SCHED=parallel turns the model off) */
+#ifdef ALBW_WINDOWS
+    { void albw_os_pin_main_tls(void); albw_os_pin_main_tls(); }   /* native/sdk/os.c: before they are used */
+#endif
     albw_sched_main_thread();
 
     fprintf(stderr, "startup: runtime init\n");

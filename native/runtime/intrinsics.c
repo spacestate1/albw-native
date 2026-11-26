@@ -107,3 +107,13 @@ static _Thread_local _Alignas(16) uint8_t tls_block[0x200];
 
 uintptr_t albw_tls(void) { return tls_slot ? (uintptr_t)tls_slot : (uintptr_t)tls_block; }
 #endif
+
+#ifdef ALBW_WINDOWS
+/* the variables above at fixed addresses (runtime/emutls.c); returns the bytes used */
+void albw_emutls_pin(void *current, void *fixed, size_t size);
+size_t albw_intrinsics_pin_tls(uint8_t *at) {
+    albw_emutls_pin(&monitor, at, sizeof monitor);
+    albw_emutls_pin(&tls_slot, at + 16, sizeof tls_slot);
+    return 32;
+}
+#endif

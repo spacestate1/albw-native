@@ -3,7 +3,7 @@
 What each GitHub issue is, what the evidence says, and what was done. Newest work at the top of each entry.
 Updated as issues are worked through. (Status: **fixed in master** = in the repository, not yet in a release.)
 
-Last updated: 2026-11-25. Pull requests: #15 merged; #16 first commit (ARM build) merged, Thor panel commits held (GPL-derived code in an MIT part); #17 (specialised fragment programs) merged; #16 closed by its author and resent without GPL code as #18 (AYN Thor bottom panel), merged (excluded from the Windows build). Issue numbers are those of github.com/spacestate1/albw-native.
+Last updated: 2026-11-26. Pull requests: #15 merged; #16 first commit (ARM build) merged, Thor panel commits held (GPL-derived code in an MIT part); #17 (specialised fragment programs) merged; #16 closed by its author and resent without GPL code as #18 (AYN Thor bottom panel), merged (excluded from the Windows build). Issue numbers are those of github.com/spacestate1/albw-native.
 
 ## Summary
 
@@ -17,7 +17,7 @@ Last updated: 2026-11-25. Pull requests: #15 merged; #16 first commit (ARM build
 | 9 | Version number in the AppImage | request | closed |
 | 8 | Cannot start from Game Mode (SteamOS) | closed | closed |
 | 7 | Cannot start the game (Windows, freeze at boot) | Windows | boot freeze fixed in v0.2.11; the later freeze is the thread-exit bug |
-| 6 | Launcher and portable installation | request | portable mode done (v0.2.7); launcher window not built |
+| 6 | Launcher and portable installation | request | portable mode done (v0.2.7); two Windows faults reported with it fixed in v0.2.17 (below); launcher window not built |
 | 5 | Port does not use the dGPU on Linux | closed | closed |
 | 4 | Texture pack support | request | done in v0.2.13 (needs a pack with the new hash) |
 | 3 | 120+ FPS | request | not started |
@@ -81,6 +81,20 @@ scheduler token was never returned) or a memory-range problem on that PC. Open; 
   Now one operation; the failed load also names the archive, and a cut-off dump is reported. **Verified in the Windows VM**
   (`ALBW_SELFTEST_PREAD=1`, four threads reading the ROM at once): old loader 7272 of 16000 reads wrong, new loader 0.
   Not yet confirmed by the user.
+
+## #6: portable mode and save states on Windows (NEONZARIN, 2026-11-26, v0.2.16)
+
+- **Crash loading a save state after a restart** (`ss_park`). Cause: the Windows build emulates thread-local
+  variables, whose addresses differ in every run, and a state holds such addresses on the saved stacks. The game
+  threads' variables now sit at fixed addresses (native/sdk/os.c `slot_pin_tls`). Verified in the Windows 10 VM:
+  v0.2.16 crashes on the load, the fixed build loads the state of the earlier run and saves and loads again. States
+  saved with earlier Windows builds still cannot be loaded after a restart.
+- **"cannot create the save directory (Permission denied)"** when started from a command prompt (their screenshot).
+  Cause: `mkdir` of a drive or a drive root answers "access denied", not "exists" (windows/loader.c `lx_mkdir`).
+  Reproduced in the VM from a prompt at `C:\`, and fixed.
+- **Lower frame rate after loading a state**: not looked into.
+- Seen in the VM, in v0.2.16 and later alike: a crash line is logged after the window closes (a thread of an unloaded
+  library at exit). Harmless to saves; not fixed.
 
 ## PR #17: specialised fragment programs
 

@@ -1,12 +1,13 @@
 # Where the port stands
 
-Last updated 2026-11-22 (release **v0.2.10**). Details of every fix:
+Last updated 2026-11-26 (release **v0.2.17**). Details of every fix:
 [native/BOOT_LOG.md](native/BOOT_LOG.md).
 
 ## Releases
 
 | Version | Date | Downloads | Notes |
 |---|---|---|---|
+| [v0.2.17](https://github.com/spacestate1/albw-native/releases/tag/v0.2.17) | 2026-11-26 | Windows zip (experimental) | **Windows: a save state loads after restarting the game** (it crashed); portable mode no longer fails with "cannot create the save directory" when started from a prompt at a drive root (both issue 6, verified in the VM). **Enemy and physics fixes**: lost vector and number returns (knockback, damage, velocities, four animation curves; Link could be left at an invalid position). Crashes and a black screen found by testing every room and enemy and by random play (BOOT_LOG 172-179). Esc > Debug: warp to a room, spawn an enemy. AYN Thor bottom panel (pull request #18, Linux ARM) |
 | [v0.2.16](https://github.com/spacestate1/albw-native/releases/tag/v0.2.16) | 2026-11-25 | Windows zip (experimental) | **Windows: file reads from several game threads no longer mix up data** (verified in the VM; likely the start-up crash in issue 13). Crashes fixed: hookshot switch in the Swamp Palace, particle-effect sorting, a Swamp Palace enemy, painting strip in a from-scratch build; dropped sound names; pushable objects' height test. A wrong or cut-off ROM is reported and no longer remembered (issue 11). Faster graphics (pull request #17), 32-bit ARM source build (pull request #16, first part), matrix fixes (#15) |
 | [v0.2.15](https://github.com/spacestate1/albw-native/releases/tag/v0.2.15) | 2026-11-25 | Windows zip (experimental) | **Fixes the Windows freeze after the file select** (issues 7, 10, 12, 13): the loader ignored thread-end destructors, so a finished game thread kept the scheduler's core for ever (verified in the VM with a self-test); the watchdog now lists who holds the core. Swamp Palace fog from room entry; 13 more literal-pool write crashes removed; **game language** (Esc > File > Language, layout.cfg, follows the computer's language; issue 14). See ISSUES_TRIAGE.md |
 | [v0.2.14](https://github.com/spacestate1/albw-native/releases/tag/v0.2.14) | 2026-11-24 | Windows zip (experimental) | Fire / Tornado Rod cones and rings are drawn (they were skipped or came out as huge shards); no more green HUD / pause screen in the Swamp Palace (fog was applied to the layout panes); a crash (write to a read-only table in `func_0046019C`) is fixed. Not fixed: the Swamp Palace fog only appears after the first sword swing |

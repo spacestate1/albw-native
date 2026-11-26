@@ -742,7 +742,18 @@ static int lx_fstat(int fd, void *st) {
     return 0;
 }
 static int lx_access(const char *path, int mode) { return _access(path, mode & 6); }
-static int lx_mkdir(const char *path, int mode) { (void)mode; return _mkdir(path); }
+static int lx_mkdir(const char *path, int mode) {
+    (void)mode;
+    if (!_mkdir(path)) return 0;
+    if (errno != EEXIST) {
+        /* The game creates its folders one level at a time and accepts "exists". A drive ("D:", its
+         * current folder) or a drive root answers "access denied" instead: started from a prompt at a
+         * root, the save folder could not be created (GitHub issue 6). */
+        DWORD a = GetFileAttributesA(path);
+        errno = a != INVALID_FILE_ATTRIBUTES && (a & FILE_ATTRIBUTE_DIRECTORY) ? EEXIST : EACCES;
+    }
+    return -1;
+}
 static int lx_rename(const char *a, const char *b) {
     if (MoveFileExA(a, b, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED)) return 0;
     errno = EACCES;
