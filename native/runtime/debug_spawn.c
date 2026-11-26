@@ -40,6 +40,29 @@ int albw_debug_profile(const char *name) {
     return -1;
 }
 
+/* The enemies spawned here, to take them out again when Link leaves the area (BOOT_LOG 174). The
+ * overworld loads and releases areas as Link walks: the game removes an area's own actors before it
+ * frees their data, but one made here belongs to no area, stayed alive and animated from freed
+ * memory (crash a few steps over the border). Saved with save states, like the actors. */
+#define SPAWNED_MAX 64
+static struct { uint32_t actor, id, area; } g_spawned[SPAWNED_MAX];
+static uint32_t area_key(void) {
+    extern char data_00709DF8[];
+    uint32_t mgr = *(uint32_t *)data_00709DF8;
+    if (!mgr) return 0;
+    return 1u << 31 | (uint32_t)*(uint8_t *)(uintptr_t)(mgr + 0x18) << 16 |
+           (*(uint32_t *)(uintptr_t)(mgr + 0x1C) & 0xFFFF);
+}
+static void remember_spawn(uint32_t a) {
+    for (int i = 0; i < SPAWNED_MAX; i++)
+        if (!g_spawned[i].actor || g_spawned[i].actor == a) {
+            g_spawned[i].actor = a;
+            g_spawned[i].id = *(uint32_t *)(uintptr_t)(a + 4);
+            g_spawned[i].area = area_key();
+            return;
+        }
+}
+
 /* 1 when every resource slot of the profile is filled: its pack is loaded here */
 int albw_debug_ready(const char *name) {
     int id = albw_debug_profile(name);
@@ -74,8 +97,14 @@ void *albw_debug_spawn(const char *name, float dx, float dz) {
     *(uint32_t *)(sp + 0x4C) = 0;
     *(int16_t *)(sp + 0x50) = -1;
     *(uint32_t *)(sp + 0x2C0) |= 1;
+    *(int32_t *)(sp + 0x29C) = -1;   /* no rail, as the stage's own actors have it (0 = the first rail) */
+    *(int32_t *)(sp + 0x2A0) = -1;
+    int full = 1;
+    for (int i = 0; i < SPAWNED_MAX; i++) if (!g_spawned[i].actor) full = 0;
+    if (full) { fprintf(stderr, "spawn: %s: too many spawned already\n", name); return NULL; }
     int *a = (int *)(intptr_t)func_004C4AF4((int)*(uint32_t *)data_00706E20, (int *)sp, 0);
     fprintf(stderr, "spawn: %s (profile %d) at %.2f %.2f %.2f -> %p\n", name, id, pos[0], pos[1], pos[2], (void *)a);
+    if (a) remember_spawn((uint32_t)(uintptr_t)a);
     return a;
 }
 
@@ -136,6 +165,29 @@ static void list_one(void *actor, uint32_t filter) {
 void albw_debug_list_actors(void) {
     uint32_t mgr = *(uint32_t *)data_00706E20;
     if (mgr) func_0052FD7C((void *)(uintptr_t)(mgr + 0x3DBBC), list_one, 0);
+}
+
+/* every frame: once the area is another one, flag the actors made in the old one for removal (the
+ * byte +0x2D7 the actor manager acts on, as when an actor removes itself); only an actor that is
+ * still listed with the same id */
+static void reap_one(void *actor, uint32_t arg) {
+    (void)arg;
+    uint32_t a = (uint32_t)(uintptr_t)actor, key = area_key();
+    for (int i = 0; i < SPAWNED_MAX; i++)
+        if (g_spawned[i].actor == a && g_spawned[i].area != key && g_spawned[i].id == *(uint32_t *)(uintptr_t)(a + 4)) {
+            *(uint8_t *)(uintptr_t)(a + 0x2D7) = 1;
+            fprintf(stderr, "spawn: removed %#x (Link left its area)\n", a);
+        }
+}
+void albw_debug_area_check(void) {
+    uint32_t mgr = *(uint32_t *)data_00706E20, key = area_key();
+    int stale = 0;
+    for (int i = 0; i < SPAWNED_MAX; i++)
+        if (g_spawned[i].actor && g_spawned[i].area != key) stale = 1;
+    if (!stale || !mgr || !key) return;
+    func_0052FD7C((void *)(uintptr_t)(mgr + 0x3DBBC), reap_one, 0);
+    for (int i = 0; i < SPAWNED_MAX; i++)
+        if (g_spawned[i].actor && g_spawned[i].area != key) g_spawned[i].actor = 0;
 }
 
 /* Start a scripted sequence by flowchart entry name (route step `event NAME`, debug).

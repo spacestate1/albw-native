@@ -1289,6 +1289,7 @@ void *albw_debug_spawn(const char *name, float dx, float dz);
 void albw_debug_list_profiles(void);
 int albw_debug_preload(const char *name);
 void albw_debug_list_actors(void);
+void albw_debug_area_check(void);
 static long g_spawn_wait = 45;   /* ALBW_SPAWN_WAIT: frames between the resource request and the create */
 static const float *route_player_pos(void) {
     /* the game's own player position (00520FC0); the player-update object + 0x30 used before went
@@ -1573,6 +1574,7 @@ int plat_poll(void) {
     int rpx, rpy;
     uint32_t rk = route_step(&rpx, &rpy);   /* ALBW_ROUTE autopilot */
     dbg_tick();   /* warp / spawn asked for in the Debug menu */
+    albw_debug_area_check();
     if (rpx || rpy) {
         in.cpad_x = (int16_t)rpx;
         in.cpad_y = (int16_t)rpy;

@@ -15,7 +15,6 @@ static const struct { const char *name, *areas; } dbg_enemies[] = {
     {"EnemyGueldMan", " FieldLight31 "},
     {"EnemyBuzzBlob", " FieldDark41 FieldLight1 FieldLight10 FieldLight11 FieldLight12 FieldLight13 FieldLight14 FieldLight15 FieldLight17 FieldLight18 FieldLight19 FieldLight2 FieldLight24 FieldLight26 FieldLight28 FieldLight29 FieldLight32 FieldLight33 FieldLight35 FieldLight37 FieldLight6 FieldLight7 FieldLight8 FieldLight9 "},
     {"EnemyLeever", " DungeonSand1 DungeonSand2 "},
-    {"EnemyIronBall", " CaveLight1 CaveLight2 CrossBattle3 DungeonDark2 DungeonEast1 DungeonEast2 DungeonSand1 DungeonSand2 "},
     {"EnemyStal", " FieldDark14 FieldDark15 FieldDark3 FieldDark30 FieldDark35 FieldDark36 FieldDark4 FieldDark9 "},
     {"EnemyStalfos", " DungeonDokuro1 DungeonDokuro2 DungeonEast2 DungeonHagure1 DungeonHera1 DungeonSand1 DungeonSand2 DungeonSand3 "},
     {"EnemyTektight", " FieldDark3 FieldDark4 FieldDark5 FieldLight20 FieldLight3 FieldLight30 FieldLight4 FieldLight5 "},
