@@ -36,6 +36,29 @@ if [[ ! -x $TOOL ]]; then
     chmod +x $TOOL.part && mv $TOOL.part $TOOL
 fi
 
+# the start-up stub: the AppImage runtime that unpacks and runs where it cannot mount, as inside the
+# container Steam starts games in (tools/build_appimage_runtime.sh, which builds it with podman / docker).
+# Built here: used as it is. Else the published build is downloaded and checked.
+RUNTIME=$TOOLS/runtime-x86_64
+RUNTIME_URL=https://github.com/spacestate1/albw-native/releases/download/v0.2.19/albw-appimage-runtime-x86_64
+RUNTIME_SHA256=7eba6aff6d7f0ffdadeb0c5bf892b2aac1e4f78a423abbead7df66ecd6872b08
+RUNTIME_ARGS=()
+if [[ ! -f $RUNTIME.key ]] && ! echo "$RUNTIME_SHA256  $RUNTIME" | sha256sum -c --status 2>/dev/null; then
+    mkdir -p $TOOLS
+    echo "== downloading the AppImage runtime"
+    if curl -fL --retry 3 -o $RUNTIME.part "$RUNTIME_URL" && echo "$RUNTIME_SHA256  $RUNTIME.part" | sha256sum -c --status; then
+        mv $RUNTIME.part $RUNTIME
+    else
+        rm -f $RUNTIME.part $RUNTIME
+    fi
+fi
+if [[ -f $RUNTIME ]]; then
+    RUNTIME_ARGS=(--runtime-file "$RUNTIME")
+else
+    echo "warning: using appimagetool's own runtime: the AppImage will not start from Steam without"
+    echo "         the launch option APPIMAGE_EXTRACT_AND_RUN=1 %command%"
+fi
+
 # AppDir
 APPDIR=build/AppDir
 rm -rf "${APPDIR:?}"
@@ -111,6 +134,6 @@ echo "== bundled:"; ls -la $APPDIR/usr/bin $APPDIR/usr/lib | awk 'NF>=9 && $1 !~
 
 # appimagetool itself is an AppImage: extract-and-run works without FUSE (containers, CI)
 mkdir -p "$(dirname "$OUT")"
-ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 $TOOL --no-appstream $APPDIR "$OUT"
+ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 $TOOL --no-appstream "${RUNTIME_ARGS[@]+"${RUNTIME_ARGS[@]}"}" $APPDIR "$OUT"
 echo "== done: $OUT"
 echo "   run: $OUT --rom /path/to/your/game.3ds   (the path is remembered afterwards)"

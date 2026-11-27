@@ -40,9 +40,17 @@ fi
 mkdir -p "$CFG" && printf '%s\n' "$(readlink -f "$ALBW_ROM")" > "$CFG/rom_path"
 export ALBW_ROM
 
+# Steam can start the game inside its own container (pressure-vessel: a non-Steam game with a "Steam Linux
+# Runtime" compatibility setting). There the system's libraries and graphics driver sit under
+# /usr/lib/pressure-vessel/overrides, and the library path Steam set up has to be kept.
+PV=0
+[[ ${container:-} == pressure-vessel || -d /run/pressure-vessel ]] && PV=1
+
 # 32-bit system pieces the AppImage cannot carry (they must match the system: libc, GPU driver)
 lib32_has() {
     local d dirs=(/usr/lib32 /usr/lib/i386-linux-gnu /lib/i386-linux-gnu)
+    local o=/usr/lib/pressure-vessel/overrides/lib/i386-linux-gnu
+    [[ $PV == 1 ]] && dirs+=("$o" "$o/aliases")
     [[ -d /usr/lib64 && ! -d /usr/lib32 ]] && dirs+=(/usr/lib)   # Fedora/openSUSE layout
     for d in "${dirs[@]}"; do compgen -G "$d/$1" >/dev/null && return 0; done
     return 1
@@ -94,7 +102,7 @@ fi
 # LD_LIBRARY_PATH dropped below, and without them SDL says "x11 not available" (issue 8). Borrow just those
 # 32-bit X11 libraries (not Steam's libGL / libstdc++), only for the ones the system lacks.
 BORROWED=""
-if [[ ( $GAMESCOPE == 1 || -n "${STEAM_RUNTIME:-}" ) && -n "${LD_LIBRARY_PATH:-}" ]]; then
+if [[ $PV == 0 && ( $GAMESCOPE == 1 || -n "${STEAM_RUNTIME:-}" ) && -n "${LD_LIBRARY_PATH:-}" ]]; then
     mkdir -p "${FBDIR:=${XDG_RUNTIME_DIR:-/tmp}/albw-port-fallback-$UID}"
     IFS=: read -ra SDIRS <<< "$LD_LIBRARY_PATH"
     for d in "${SDIRS[@]}"; do
@@ -115,7 +123,7 @@ fi
 # Steam's run.sh points LD_LIBRARY_PATH at its own runtime libraries (older Ubuntu libstdc++, libGL, ...);
 # the game would load those instead of the system's 32-bit Mesa. Only our own folders, as the Krita
 # AppImage does for the same reason (ValveSoftware/steam-runtime#189).
-if [[ $GAMESCOPE == 1 || -n "${STEAM_RUNTIME:-}" ]]; then
+if [[ $PV == 0 && ( $GAMESCOPE == 1 || -n "${STEAM_RUNTIME:-}" ) ]]; then
     export LD_LIBRARY_PATH="$LIBS"
 else
     export LD_LIBRARY_PATH="$LIBS${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -129,7 +137,7 @@ if [[ ! -t 2 ]]; then
     LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/albw-port"
     if mkdir -p "$LOGDIR" 2>/dev/null; then
         export ALBW_LOG_FILE="$LOGDIR/last-run.log"
-        { echo "== ALBW native ${ALBW_VERSION:-(unknown version)} $(date) game mode=$GAMESCOPE LD_LIBRARY_PATH=$LD_LIBRARY_PATH SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} borrowed:${BORROWED:- none}"
+        { echo "== ALBW native ${ALBW_VERSION:-(unknown version)} $(date) game mode=$GAMESCOPE steam container=$PV LD_LIBRARY_PATH=$LD_LIBRARY_PATH SDL_VIDEO_DRIVER=${SDL_VIDEO_DRIVER:-} DISPLAY=${DISPLAY:-} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-} borrowed:${BORROWED:- none}"
           echo "   x11 sockets: $(ls /tmp/.X11-unix 2>&1 | tr '\n' ' ') XAUTHORITY=${XAUTHORITY:-} GAMESCOPE_WAYLAND_DISPLAY=${GAMESCOPE_WAYLAND_DISPLAY:-} XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-}"
           echo "   system 32-bit libX11: $(lib32_has libX11.so.6 && echo yes || echo no)  fallback dir: $(ls "${FBDIR:-/nonexistent}" 2>/dev/null | tr '\n' ' ')"; } > "$ALBW_LOG_FILE"
         "$HERE/usr/bin/albw" "${ARGS[@]+"${ARGS[@]}"}" >> "$ALBW_LOG_FILE" 2>&1

@@ -35,6 +35,15 @@ v0.2.18 refuses v0.2.17 states in the same way: it builds the hand-fixed decompi
 (BOOT_LOG 182), so those functions all changed. Tried on Linux with two states: refused with the message above, and the
 game carried on.
 
+## Steam Deck: starts in desktop mode, not from Steam (user report, 2026-11-26, v0.2.10 and a source build)
+
+"Error: No suitable fusermount binary found on the $PATH ... Cannot mount AppImage". Steam started the game in its
+runtime container (pressure-vessel), which cannot mount an AppImage, so nothing of the port ran. Reproduced with Valve's
+SteamLinuxRuntime_sniper on an Arch container. Fixed (2026-11-27, v0.2.19 AppImage replaced): the AppImage's start-up
+stub now unpacks and runs when it cannot mount, and AppRun finds the container's 32-bit libraries and keeps its library
+path (it stopped with "This game needs the 32-bit C library and 32-bit OpenGL" once past mounting). Verified under the
+same container tool, desktop and Game Mode variables. Not confirmed on a real Steam Deck.
+
 ## The Windows freeze family (issues 7, 10, 12, 13)
 
 **Reports.** Windows 10/11, NVIDIA RTX 3050/4060/5070 Ti, AMD RX 550/6600/9070 XT: the game starts, shows the title and the

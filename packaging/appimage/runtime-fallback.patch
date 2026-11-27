@@ -1,0 +1,45 @@
+The AppImage start-up stub: github.com/AppImage/type2-runtime (MIT, see its LICENSE) at the commit named in
+tools/build_appimage_runtime.sh, with two changes: it unpacks and runs where it cannot mount, and its
+libfuse build skips the device nodes an unprivileged (rootless) container may not create.
+
+diff --git a/scripts/common/install-dependencies.sh b/scripts/common/install-dependencies.sh
+index 9716cb8..f1e463f 100755
+--- a/scripts/common/install-dependencies.sh
++++ b/scripts/common/install-dependencies.sh
+@@ -28,7 +28,7 @@ pushd fuse-3*/
+ patch -p1 < "$this_dir"/../../patches/libfuse/mount.c.diff
+ mkdir build
+ cd build
+-CFLAGS="$prefix_map_flags" meson setup --prefix=/usr ..
++CFLAGS="$prefix_map_flags" meson setup --prefix=/usr -Duseroot=false ..
+ meson configure --default-library static
+ ninja -v install
+ popd
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index a073f60..3e7686f 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -1791,6 +1791,23 @@ int main(int argc, char* argv[]) {
+         /* Fuse process has now daemonized, reap our child */
+         waitpid(pid, NULL, 0);
+ 
++        /* albw-port: nothing mounted (no FUSE here, e.g. Steam's runtime container has no fusermount):
++         * unpack to a temporary folder and run from there, as --appimage-extract-and-run does */
++        {
++            char probe[mount_dir_size + 8];
++            strcpy(probe, mount_dir);
++            strcat(probe, "/AppRun");
++            if (access(probe, F_OK) != 0) {
++                rmdir(mount_dir);
++                fflush(stdout);
++                fprintf(stderr, "AppImage: could not mount it; unpacking to %s and running from there instead\n", temp_base);
++                setenv("APPIMAGE_EXTRACT_AND_RUN", "1", 1);
++                execv("/proc/self/exe", argv);
++                perror("execv error");
++                exit(EXIT_EXECERROR);
++            }
++        }
++
+         dir_fd = open(mount_dir, O_RDONLY);
+         if (dir_fd == -1) {
+             perror("open dir error");

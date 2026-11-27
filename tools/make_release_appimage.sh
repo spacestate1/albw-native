@@ -18,6 +18,7 @@ CT=$(command -v podman || command -v docker || true)
 WORK=$(mktemp -d -p build appimage-release.XXXX)
 trap 'rm -rf "${WORK:?}"' EXIT
 mkdir -p "$(dirname "$OUT")"
+tools/build_appimage_runtime.sh   # the start-up stub a release must carry (it runs from Steam)
 cat > "$WORK/pack.sh" <<'EOF'
 #!/usr/bin/env bash
 set -e
@@ -43,6 +44,8 @@ strings -a build/deps/sdl3-i686/lib/libSDL3.so.0 | grep -q libX11 || { echo 'SDL
 cp -r /src/tools /src/packaging /work/
 cp /src/VERSION /work/ 2>/dev/null || true
 cp /src/build/albw /work/build/
+mkdir -p /work/build/appimage-tools
+cp /src/build/appimage-tools/runtime-x86_64 /src/build/appimage-tools/runtime-x86_64.key /work/build/appimage-tools/
 [[ -f /src/build/albw.ssmap ]] && cp /src/build/albw.ssmap /work/build/
 export LD_LIBRARY_PATH=/work/build/deps/sdl3-i686/lib
 tools/make_appimage.sh /out/ALBW-native-x86_64.AppImage | grep -E '^==|not bundled'
