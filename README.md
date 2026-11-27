@@ -31,9 +31,9 @@ Japanese releases do not work: the decompiled code is tied to the European relea
 
 ### Linux: download (easiest)
 
-1. Download `ALBW-native-x86_64.AppImage` from the [latest release](https://github.com/spacestate1/albw-native/releases/latest).
-2. `chmod +x ALBW-native-x86_64.AppImage`
-3. `./ALBW-native-x86_64.AppImage --rom /path/to/your/game.3ds` (the path is remembered; started
+1. Download `ALBW-native-v<version>-x86_64.AppImage` from the [latest release](https://github.com/spacestate1/albw-native/releases/latest).
+2. `chmod +x ALBW-native-*.AppImage`
+3. `./ALBW-native-*.AppImage --rom /path/to/your/game.3ds` (the path is remembered; started
    from a file manager, it asks with a file dialog).
 
 Runs on Ubuntu 22.04 / 24.04, Debian 12+, Fedora, Arch, SteamOS and similar (x86-64). It needs the
