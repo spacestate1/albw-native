@@ -4,10 +4,10 @@
  * there is no mouse on a controller: the D-pad (or a circle-pad flick) moves a selector between the
  * page's touch targets and A taps the one under it. The selector is the user's grid-selector
  * graphic (native/platform/assets/grid-selector.png, embedded by selector_img.h) drawn as an
- * overlay on the bottom screen's image, not a pointer. The page is recognised from pixels of the
- * bottom screen: Gear (red frame), Items (tan grid), a dungeon map (blue-grey frame), the world map
- * (orange scroll top left; with the bell button bottom left once Link has the bell: its yellow
- * icon), else another page with
+ * overlay on the bottom screen's image, not a pointer. The page is recognised every frame from pixels
+ * of the bottom screen: Gear (red frame), Items (the greige rim of its grid), a dungeon map (blue-grey
+ * frame), the world map (orange scroll top left; with the bell button bottom left once Link has the
+ * bell: its yellow icon), else another page with
  * controls of its own (the bell's warp menu), where the D-pad and A go to the game. Targets are in 3DS bottom
  * screen pixels (320 x 240, origin top left), measured on the game's pages. */
 #include "selector_img.h"
@@ -75,6 +75,7 @@ static int g_sel_page, g_sel_idx, g_sel_on;
 static int g_sel_x = 160, g_sel_y = 120;   /* last selected centre (kept across pages) */
 static int g_sel_touch;                    /* A held: touch at the target */
 static int g_sel_autotap;                  /* frames of a tap when moving onto a native-cursor target */
+static int g_sel_arrive;                   /* frames until the Items page, just opened, gets that tap */
 static uint32_t g_sel_prev;
 static GLuint g_sel_tex;
 
@@ -135,6 +136,12 @@ static void sel_input(PlatInput *pin) {
     if (dy) g_sel_idx = sel_step(g_sel_page, g_sel_idx, 0, dy);
     /* the game draws its own cursor on these (Items grid): select by a short tap so it follows */
     if (g_sel_idx != was && SEL_PAGES[g_sel_page].t[g_sel_idx].native) g_sel_autotap = 4;
+    /* the Items page has just opened with the game's cursor elsewhere: the same tap, once the page has
+       faded in, brings it here (two cursors were shown). A move or A meanwhile makes it unnecessary. */
+    if (g_sel_arrive > 0) {
+        if (g_sel_page != SEL_PAGE_ITEMS || g_sel_idx != was || (held & KEY_A)) g_sel_arrive = 0;
+        else if (--g_sel_arrive == 0 && SEL_PAGES[g_sel_page].t[g_sel_idx].native) g_sel_autotap = 4;
+    }
     const SelTarget *t = &SEL_PAGES[g_sel_page].t[g_sel_idx];
     g_sel_x = t->x;
     g_sel_y = t->y;
@@ -158,28 +165,53 @@ static void sel_input(PlatInput *pin) {
     pin->cpad_x = pin->cpad_y = 0;
 }
 
-/* plat_composite (the screens were just drawn into the window): recognise the page now and then
- * from the bottom screen's target, draw the selector over the bottom screen's place in the window.
+/* the greige of the Items panel's rim (about 178, 155, 114): the dungeon map there is blue-grey, the world
+   map orange, the Gear page red */
+static int sel_is_items_rim(const uint8_t *p) { return p[0] > 150 && p[0] < 210 && p[1] > 130 && p[1] < 185 && p[2] > 85 && p[2] < 145; }
+
+/* plat_composite (the screens were just drawn into the window): recognise the page from the bottom
+ * screen's target, draw the selector over the bottom screen's place in the window.
  * Not in render_scanout / plat_end_frame: save states resume inside those (their code must stay). */
 static __attribute__((noinline)) void sel_composite(const Layout *l) {
     if (!sel_active() || !l->visible[SCREEN_BOTTOM]) return;
     const Target *bt = &screens[SCREEN_BOTTOM];
     int w = bt->w, h = bt->h;
     if (w <= 0 || h <= 0) return;
-    static unsigned frame;
-    if (frame++ % 10 == 0) {
+    {   /* every frame: the screen has just come up, or its page has just changed, and the selector takes that
+           page's place and size at once (looking every 10th frame left the old page's size on screen) */
         glBindFramebuffer(0x8CA8 /* GL_READ_FRAMEBUFFER */, bt->fbo);
-        uint8_t a[4] = {0}, b[4] = {0}, c[4] = {0}, d[4] = {0};   /* d: top-left corner */
+        uint8_t a[4] = {0}, b[3][4] = {{0}}, c[4] = {0}, d[4] = {0};   /* d: top-left corner */
         glReadPixels(300 * w / 320, h - 1 - 60 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, a);
-        glReadPixels(160 * w / 320, h - 1 - 120 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, b);
+        /* the Items grid's panel, its rim below the last row: no item is drawn there (the middle of the grid,
+           checked before, is a bottle's cell in some games: the page was not recognised). The X / Y bubble of
+           the game's cursor reaches the rim, so two of three spots count */
+        int rim = 0;
+        for (int i = 0; i < 3; i++) {
+            static const int x[3] = {80, 130, 176};
+            glReadPixels(x[i] * w / 320, h - 1 - 196 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, b[i]);
+            rim += sel_is_items_rim(b[i]);
+        }
         glReadPixels(28 * w / 320, h - 1 - 226 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, c);   /* bell icon: pure yellow */
         glReadPixels(5 * w / 320, h - 1 - 5 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, d);   /* map frame colour */
         glBindFramebuffer(0x8CA8 /* GL_READ_FRAMEBUFFER */, 0);
+        int world_map = d[0] > 200 && d[1] > 140 && d[2] < 110;   /* the orange scroll top left */
+        /* the world map's bell button: its icon at full brightness means it is there. It is taken to be gone
+           only when the wood of a Gear tab stays in its place for half a second; anything else (the buttons
+           fading in as the page opens, a button held down, the warp menu's Cancel bar passing) leaves the map
+           with the layout it had */
+        static int bell, wood_frames;
+        if (world_map && c[0] > 230 && c[1] > 190 && c[2] < 60) bell = 1, wood_frames = 0;
+        else if (!world_map || !(c[0] > 150 && c[2] > 25)) wood_frames = 0;
+        else if (++wood_frames >= 30) bell = 0;
         int page = (a[0] > 90 && a[1] < 45) ? SEL_PAGE_GEAR
-                 : (b[0] > 150 && b[1] > 120 && b[2] < 120) ? SEL_PAGE_ITEMS
+                 : rim >= 2 ? SEL_PAGE_ITEMS
                  : (d[2] > 140 && d[2] > d[0] + 10) ? SEL_PAGE_DUNGEON          /* blue-grey dungeon frame */
-                 : !(d[0] > 200 && d[1] > 140 && d[2] < 110) ? SEL_PAGE_OTHER   /* no orange map scroll: warp menu */
-                 : (c[0] > 230 && c[1] > 190 && c[2] < 60) ? SEL_PAGE_MAP_BELL : SEL_PAGE_MAP;
+                 : !world_map ? SEL_PAGE_OTHER                                    /* no orange map scroll: warp menu */
+                 : bell ? SEL_PAGE_MAP_BELL : SEL_PAGE_MAP;
+        if (page != g_sel_page && getenv("ALBW_SEL_TRACE")) {
+            extern long g_plat_frames;
+            fprintf(stderr, "selector: f=%ld sees page %d (was %d)\n", g_plat_frames, page, g_sel_page);
+        }
         if (page != g_sel_page && page == SEL_PAGE_OTHER) {
             g_sel_page = page;
         } else if (page != g_sel_page) {
@@ -188,6 +220,7 @@ static __attribute__((noinline)) void sel_composite(const Layout *l) {
             const SelTarget *t = &SEL_PAGES[page].t[g_sel_idx];
             g_sel_x = t->x;
             g_sel_y = t->y;
+            g_sel_arrive = page == SEL_PAGE_ITEMS ? 20 : 0;
         }
     }
     if (g_sel_page == SEL_PAGE_OTHER) return;   /* the game's own menu: no selector */

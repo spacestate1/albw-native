@@ -11,7 +11,7 @@ Last updated: 2026-11-26. Pull requests: #15 merged; #16 first commit (ARM build
 |---|---|---|---|
 | 14 | No way to choose the game language | feature | closed 2026-11-26 (in v0.2.15 and later: Esc > File > Language, `language` line in layout.cfg, follows the computer's language) |
 | 13 | Game won't start (two reports: crash, freeze) | Windows hang / crash | closed by the reporter 2026-11-26 (their copy of the game); the freeze fix is in v0.2.15 |
-| 12 | Crash after file selection screen | Windows hang | same cause as 13 / 10 / 7; fixed in master |
+| 12 | Crash after file selection screen | Windows hang | closed 2026-11-26: the reporter confirms the fix works (same cause as 13 / 10 / 7, in v0.2.15) |
 | 11 | Steam Deck AppImage will not open after failed .3ds import | Linux | **fixed in master**: a file the game cannot use is forgotten, with a clear message |
 | 10 | Black screen after naming the file, Windows | Windows hang | same cause; fixed in master (waiting for a confirming log) |
 | 9 | Version number in the AppImage | request | closed |
