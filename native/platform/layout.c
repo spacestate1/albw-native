@@ -133,7 +133,8 @@ void layout_canvas_size(const LayoutConfig *c, int *w, int *h) {
     LayoutRect r[2];
     int vis[2], order[2];
     float cw, ch;
-    LayoutConfig d = c->single_screen ? single_as_preset(c) : *c;
+    LayoutConfig d = *c;
+    if (c->single_screen) { d.show_bottom = 0; d = single_as_preset(&d); }   /* the bottom screen is an overlay */
     if (d.preset == LAYOUT_CUSTOM) d.preset = LAYOUT_DEFAULT;
     preset_canvas(&d, r, vis, order, &cw, &ch);
     *w = (int)roundf_(cw);
@@ -147,8 +148,24 @@ static LayoutRect pixel_align(LayoutRect r) {
 
 void layout_compute(const LayoutConfig *c, int ww, int wh, Layout *l) {
     if (c->single_screen) {
-        LayoutConfig d = single_as_preset(c);
+        /* the top screen fills the window; the bottom one, when up, is laid over its middle (85% of
+           the top screen's height, drawn in front: touch / clicks go to it), so the scene stays in
+           view behind it (a text box saying "tap ... on your Touch Screen" stays readable) */
+        LayoutConfig d = *c;
+        d.show_bottom = 0;
+        d = single_as_preset(&d);
         layout_compute(&d, ww, wh, l);
+        if (c->show_bottom) {
+            const LayoutRect *t = &l->r[LAYOUT_SCREEN_TOP];
+            int nw, nh;
+            layout_native_size(LAYOUT_SCREEN_BOTTOM, &nw, &nh);
+            float sc = fminf_(t->w * 0.85f / nw, t->h * 0.85f / nh);
+            float w = nw * sc, h = nh * sc;
+            l->r[LAYOUT_SCREEN_BOTTOM] = pixel_align((LayoutRect){t->x + (t->w - w) / 2, t->y + (t->h - h) / 2, w, h});
+            l->visible[LAYOUT_SCREEN_BOTTOM] = 1;
+            l->order[0] = LAYOUT_SCREEN_TOP;
+            l->order[1] = LAYOUT_SCREEN_BOTTOM;
+        }
         return;
     }
     memset(l, 0, sizeof *l);

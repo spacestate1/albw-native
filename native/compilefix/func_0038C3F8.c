@@ -917,6 +917,12 @@ LAB_0038d624:
         iStack_40 = local_80;
         uStack_3c = local_7c;
         func_00115C54((float *)&local_84,local_38,(float *)&local_44);
+        /* the pull target = (x, +0x17C, z) of that sum: EU 38DB74 / 38DB78 keep x = [sp+12] and z =
+         * [sp+20] in s17 / s18 and 38DCE4..38DCF0 store them at sp+40 / sp+48 (local_68 / +0x30) with y at
+         * sp+44. The text lost the x / z stores: Link was pulled to (0, y, 0), the map's middle, when
+         * picking up a Maiamai stuck on a wall (camera swept off; BOOT_LOG 195) */
+        local_68 = *(float *)(albw_frame + 0xc);
+        *(float *)(albw_frame + 0x30) = *(float *)(albw_frame + 0x14);
         uVar17 = *(undefined4 *)(param_1 + 0x17c);
         if (ALBW_AS_F32(local_6c) == fVar16 && local_74 == fVar16) {
           iVar7 = 0;

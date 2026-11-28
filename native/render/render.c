@@ -30,6 +30,7 @@
 #include <SDL3/SDL.h>
 
 #include "../platform/platform.h"
+#include "../platform/layout.h"
 #include "fraglight.h"
 #include "effects.h"
 #include "prim.h"
@@ -243,6 +244,7 @@ typedef struct {
     int p_wrap_s, p_wrap_t, p_min, p_mag; /* last sampler params set */
     int p_maxl, p_minl;                   /* last per-draw LOD range set (-1 none) */
     int up_levels;                        /* levels tex_upload actually stored (<= levels: stops under 8x8) */
+    uint8_t pre;                          /* uploaded ahead (tex_prewarm): re-hash all of level 0 at the first real use */
 } TexEnt;
 
 typedef struct {
@@ -585,14 +587,18 @@ static const char *base_vs(const Program *base) {
     return VS_SRC[base - R.progs];
 }
 
-static Program *spec_program(Program *base) {
-    static int off = -1;
-    if (off < 0) off = getenv("ALBW_NO_SPEC") != NULL;
-    const char *vs = base_vs(base);
-    if (off || !vs) return base;
-    GLint src[24], cmb[24], buf[2], tc[3], fl[12] = {0};
-    spec_state(src, cmb, buf, tc);
-    if (base->fl) fraglight_config(fl, fl + 4);
+/* base program <-> a number that stays the same between runs (the program cache file) */
+static int spec_base_id(const Program *base) {
+    if (base >= R.variants && base < R.variants + RENDER_PROG_VARIANTS) return RPROG_COUNT + (int)(base - R.variants);
+    return (int)(base - R.progs);
+}
+
+static void spec_record(int base_id, const GLint src[24], const GLint cmb[24], const GLint buf[2], const GLint tc[3], const GLint fl[12]);
+
+/* the specialised program of base for this set-up, compiled if not done yet (record: remember the
+ * set-up in the program cache file, so later runs compile it ahead, spec_prewarm) */
+static Program *spec_get(Program *base, const char *vs, const GLint src[24], const GLint cmb[24], const GLint buf[2],
+                         const GLint tc[3], const GLint fl[12], bool record) {
     uint64_t h = 1469598103934665603ull ^ (uintptr_t)base;
     const GLint *parts[5] = {src, cmb, buf, tc, fl};
     const int lens[5] = {24, 24, 2, 3, 12};
@@ -600,8 +606,8 @@ static Program *spec_program(Program *base) {
         for (int i = 0; i < lens[k]; i++) h = (h ^ (uint32_t)parts[k][i]) * 1099511628211ull;
     SpecProg **head = &g_spec[h % SPEC_BUCKETS];
     for (SpecProg *e = *head; e; e = e->next)
-        if (e->base == base && !memcmp(e->src, src, sizeof src) && !memcmp(e->cmb, cmb, sizeof cmb) &&
-            !memcmp(e->buf, buf, sizeof buf) && !memcmp(e->tc, tc, sizeof tc) && !memcmp(e->fl, fl, sizeof fl))
+        if (e->base == base && !memcmp(e->src, src, 24 * sizeof *src) && !memcmp(e->cmb, cmb, 24 * sizeof *cmb) &&
+            !memcmp(e->buf, buf, 2 * sizeof *buf) && !memcmp(e->tc, tc, 3 * sizeof *tc) && !memcmp(e->fl, fl, 12 * sizeof *fl))
             return &e->p;
     char spec[1024];
     int n = snprintf(spec, sizeof spec, "#define SPEC 1\nconst ivec4 tev_src[6] = ivec4[6](");
@@ -619,17 +625,142 @@ static Program *spec_program(Program *base) {
     SpecProg *e = calloc(1, sizeof *e);
     if (!e) abort();
     e->base = base;
-    memcpy(e->src, src, sizeof src);
-    memcpy(e->cmb, cmb, sizeof cmb);
-    memcpy(e->buf, buf, sizeof buf);
-    memcpy(e->tc, tc, sizeof tc);
-    memcpy(e->fl, fl, sizeof fl);
+    memcpy(e->src, src, sizeof e->src);
+    memcpy(e->cmb, cmb, sizeof e->cmb);
+    memcpy(e->buf, buf, sizeof e->buf);
+    memcpy(e->tc, tc, sizeof e->tc);
+    memcpy(e->fl, fl, sizeof e->fl);
     program_init(&e->p, vs, base->fl, spec);
     e->next = *head;
     *head = e;
     render_spec_builds++;
-    if (g_trace) rlog("specialised fragment program %lu for base %p", render_spec_builds, (const void *)base);
+    if (record) spec_record(spec_base_id(base), src, cmb, buf, tc, fl);
+    if (g_trace) rlog("specialised fragment program %lu for base %p%s", render_spec_builds, (const void *)base, record ? "" : " (prewarm)");
     return &e->p;
+}
+
+static Program *spec_program(Program *base) {
+    static int off = -1;
+    if (off < 0) off = getenv("ALBW_NO_SPEC") != NULL;
+    const char *vs = base_vs(base);
+    if (off || !vs) return base;
+    GLint src[24], cmb[24], buf[2], tc[3], fl[12] = {0};
+    spec_state(src, cmb, buf, tc);
+    if (base->fl) fraglight_config(fl, fl + 4);
+    return spec_get(base, vs, src, cmb, buf, tc, fl, true);
+}
+
+/* ---------------------------------------------------------------- program cache file
+ * A specialised program is compiled the first time a draw needs its set-up: a new room, effect or
+ * menu meant several compiles (each a few to ~100 ms in the GL driver) inside one frame, the
+ * stutter the first time a scene is seen. Every set-up compiled is appended to programs.cache
+ * (next to layout.cfg); from the next start, spec_prewarm compiles the listed ones a few per frame
+ * (title screen, file select), so the scenes find them built. The GL driver's own shader disk cache
+ * (Mesa, NVIDIA) then makes each of those compiles cheap. ALBW_NO_PROGRAM_CACHE=1: neither read nor
+ * write the file. Record: int32 base id (RPROG_* or RPROG_COUNT + h3d variant), 65 int32 (src, cmb,
+ * buf, tc, fl). The header has the program counts: a build with other programs starts a new file. */
+#define SPEC_REC_INTS 66
+#define SPEC_CACHE_MAX 8192
+static const char SPEC_MAGIC[8] = {'A', 'L', 'B', 'W', 'S', 'P', 'C', '1'};
+static FILE *g_spec_file;   /* open for appending (NULL: off or not writable) */
+static int g_spec_file_state;   /* 0 not opened yet, 1 opened / tried */
+static int32_t *g_spec_pre;     /* records to prewarm */
+static int g_spec_npre, g_spec_next, g_spec_nfile;
+unsigned long render_spec_prewarmed;   /* compiled ahead from the file so far */
+
+static void spec_cache_path(char *out, size_t n) {
+    const char *e = getenv("ALBW_PROGRAM_CACHE");
+    if (e && *e) { snprintf(out, n, "%s", e); return; }
+    const char *cfg = layout_default_path();
+    const char *sl = strrchr(cfg, '/');
+    const char *bs = strrchr(cfg, '\\');
+    if (bs && (!sl || bs > sl)) sl = bs;
+    int d = sl ? (int)(sl - cfg) : 0;
+    snprintf(out, n, "%.*s%sprograms.cache", d, cfg, d ? "/" : "");
+}
+
+/* read the file (once): the records become the prewarm list; the file stays open for appending */
+static void spec_cache_open(void) {
+    if (g_spec_file_state) return;
+    g_spec_file_state = 1;
+    if (getenv("ALBW_NO_PROGRAM_CACHE") || getenv("ALBW_NO_SPEC")) return;
+    char path[1100];
+    spec_cache_path(path, sizeof path);
+    int32_t hdr[2] = {RPROG_COUNT, RENDER_PROG_VARIANTS};
+    FILE *f = fopen(path, "rb");
+    bool fresh = true;
+    if (f) {
+        char m[8];
+        int32_t h[2];
+        if (fread(m, 1, 8, f) == 8 && !memcmp(m, SPEC_MAGIC, 8) && fread(h, sizeof h, 1, f) == 1 && h[0] == hdr[0] && h[1] == hdr[1]) {
+            fresh = false;
+            int32_t r[SPEC_REC_INTS];
+            while (g_spec_npre < SPEC_CACHE_MAX && fread(r, sizeof r, 1, f) == 1) {
+                if (r[0] < 0 || r[0] >= RPROG_COUNT + RENDER_PROG_VARIANTS) continue;
+                g_spec_pre = xrealloc(g_spec_pre, (size_t)(g_spec_npre + 1) * sizeof r);
+                memcpy(g_spec_pre + (size_t)g_spec_npre * SPEC_REC_INTS, r, sizeof r);
+                g_spec_npre++;
+            }
+        }
+        fclose(f);
+    }
+    g_spec_nfile = g_spec_npre;
+    g_spec_file = fopen(path, fresh ? "wb" : "ab");
+    if (g_spec_file && fresh) {
+        fwrite(SPEC_MAGIC, 1, 8, g_spec_file);
+        fwrite(hdr, sizeof hdr, 1, g_spec_file);
+        fflush(g_spec_file);
+    }
+    rlog("program cache %s: %d set-ups to compile ahead%s", path, g_spec_npre, g_spec_file ? "" : " (file not writable)");
+}
+
+static void spec_record(int base_id, const GLint src[24], const GLint cmb[24], const GLint buf[2], const GLint tc[3], const GLint fl[12]) {
+    spec_cache_open();
+    if (!g_spec_file || g_spec_nfile >= SPEC_CACHE_MAX) return;
+    int32_t r[SPEC_REC_INTS], *q = r;
+    *q++ = base_id;
+    for (int i = 0; i < 24; i++) *q++ = src[i];
+    for (int i = 0; i < 24; i++) *q++ = cmb[i];
+    for (int i = 0; i < 2; i++) *q++ = buf[i];
+    for (int i = 0; i < 3; i++) *q++ = tc[i];
+    for (int i = 0; i < 12; i++) *q++ = fl[i];
+    fwrite(r, sizeof r, 1, g_spec_file);
+    fflush(g_spec_file);   /* kept if the game is closed or crashes */
+    g_spec_nfile++;
+}
+
+/* compile listed set-ups ahead, for up to ~4 ms of each frame (at least one) */
+static __attribute__((noinline)) void spec_prewarm(void) {
+    spec_cache_open();
+    if (g_spec_next >= g_spec_npre) return;
+    uint64_t t0 = SDL_GetTicksNS();
+    while (g_spec_next < g_spec_npre) {
+        const int32_t *r = g_spec_pre + (size_t)g_spec_next * SPEC_REC_INTS;
+        int id = r[0];
+        Program *base;
+        if (id >= RPROG_COUNT) {
+            if (!R.ext.h3d_vs_body || !R.ext.h3d_defines) return;   /* the h3d programs are not known yet: next frame */
+            base = build_variant(id - RPROG_COUNT);
+        } else {
+            base = &R.progs[id];
+        }
+        g_spec_next++;
+        const char *vs = base_vs(base);
+        if (!vs || !base->prog) continue;
+        GLint src[24], cmb[24], buf[2], tc[3], fl[12];
+        const int32_t *q = r + 1;
+        for (int i = 0; i < 24; i++) src[i] = *q++;
+        for (int i = 0; i < 24; i++) cmb[i] = *q++;
+        for (int i = 0; i < 2; i++) buf[i] = *q++;
+        for (int i = 0; i < 3; i++) tc[i] = *q++;
+        for (int i = 0; i < 12; i++) fl[i] = *q++;
+        unsigned long before = render_spec_builds;
+        spec_get(base, vs, src, cmb, buf, tc, fl, false);
+        if (render_spec_builds != before) render_spec_prewarmed++;
+        if (SDL_GetTicksNS() - t0 > 4000000) break;
+    }
+    if (g_spec_next >= g_spec_npre)
+        rlog("program cache: %lu set-ups compiled ahead", render_spec_prewarmed);
 }
 
 static const char *SCAN_VS =
@@ -1345,6 +1476,10 @@ static void bind_unit(int i) {
     }
     TexEnt *t = tex_lookup(u);
     t->used_frame = R.frame;
+    if (t->pre) {   /* uploaded ahead at load: the bytes may have changed since (any size, once) */
+        t->pre = 0;
+        if (!t->dirty && !cube && t->hash != hash_bytes((const void *)t->addr, level_bytes(t->fmt, t->w, t->h, 1))) t->dirty = true;
+    }
     if (!t->dirty && t->checked_frame != R.frame) {
         /* CPU-written textures (font sheets...) are not announced: re-hash small ones once a frame */
         size_t n = level_bytes(t->fmt, t->w, t->h, 1);
@@ -2186,6 +2321,59 @@ static void htab_rebuild(uint32_t cap) {
     }
 }
 
+/* ---------------------------------------------------------------- textures ahead of their first draw
+ * A model's texture binds are recorded when its resource is loaded (an area's enemies, objects and
+ * effects, during the area change), but a texture was decoded and uploaded only at the first draw
+ * that used it: a new enemy coming on screen cost its textures' decode + upload (and a texture
+ * pack's PNG decode) inside that frame. render_frame_end queues the binds recorded since it last looked
+ * (new op-pool slots) and uploads them for up to ~3 ms of each frame. The first real use re-hashes the texture once (TexEnt.pre), so
+ * one whose bytes were not final yet is uploaded again. Off unless ALBW_TEX_PREWARM=1 (BOOT_LOG 198). */
+static RTexUnit *g_texq;
+static size_t g_ntexq, g_captexq, g_texq_next;
+unsigned long render_tex_prewarmed;
+
+static void tex_prewarm_queue(const RTexUnit *u) {
+    if (!u->addr || !u->w || !u->h || u->type == 5 || u->type == 1 || u->type == 4) return;   /* none / shadow / cube */
+    if (g_ntexq - g_texq_next > 4096) return;
+    VEC_PUSH(g_texq, g_ntexq, g_captexq);
+    g_texq[g_ntexq++] = *u;
+}
+
+static __attribute__((noinline)) void tex_prewarm(void) {
+    static int off = -1;
+    if (off < 0) off = getenv("ALBW_TEX_PREWARM") == NULL;   /* opt-in: measured no gain with a texture pack (each PNG decode can outlast the budget) */
+    if (off) return;
+    {   /* texture binds recorded since the last look: the pool's new slots (taken from the pool here, not
+           in pool_put / rec: a thread can be inside rec when a state is saved, and its code must stay) */
+        static uint32_t scanned;
+        if (scanned > g_npool) scanned = 0;   /* pool reset (state load) */
+        for (; scanned < g_npool; scanned++) {
+            const PoolEnt *pe = &g_pool[scanned];
+            if (pe->live && pe->op.type == ROP_TEXUNIT) tex_prewarm_queue(&pe->op.u.tex);
+        }
+    }
+    if (g_texq_next >= g_ntexq) { g_ntexq = g_texq_next = 0; return; }
+    uint64_t t0 = SDL_GetTicksNS();
+    bool bound = false;
+    while (g_texq_next < g_ntexq) {
+        const RTexUnit *u = &g_texq[g_texq_next++];
+        if (surface_at(u->addr, 0) || surface_at(u->addr, 1)) continue;   /* render-to-texture */
+        TexEnt *t = tex_lookup(u);
+        if (!t->dirty) continue;
+        if (!bound) { glActiveTexture(GL_TEXTURE0 + 7); bound = true; }   /* a unit draws do not use */
+        t->hash = hash_bytes((const void *)t->addr, level_bytes(t->fmt, t->w, t->h, 1));
+        tex_upload(t);
+        t->pre = 1;
+        t->checked_frame = R.frame;
+        t->p_wrap_s = t->p_wrap_t = t->p_min = t->p_mag = -1;
+        t->p_maxl = t->p_minl = -1;
+        render_tex_prewarmed++;
+        if (SDL_GetTicksNS() - t0 > 3000000) break;
+    }
+    if (bound) { glBindTexture(GL_TEXTURE_2D, 0); glActiveTexture(GL_TEXTURE0); }
+    if (g_texq_next >= g_ntexq) g_ntexq = g_texq_next = 0;
+}
+
 static uint32_t pool_put(const ROp *op, int pinned) {
     uint64_t h = op_hash(op);
     if (g_hcap && g_htab) {
@@ -2289,6 +2477,8 @@ void render_frame_end(void) {
             if (v < RENDER_PROG_VARIANTS && !R.variants[v].prog) { build_variant(v); break; }
         }
     }
+    spec_prewarm();   /* specialised programs seen in earlier runs (program cache file) */
+    tex_prewarm();    /* textures of models just loaded */
     if (g_live > POOL_GC_HIGH) {
         uint32_t freed = 0;
         for (uint32_t s = 0; s < g_npool; s++) {

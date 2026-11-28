@@ -1648,7 +1648,10 @@ int plat_poll(void) {
     }
     /* Start flips while the bottom screen is up (a menu may stay open any time) or in the field;
      * not at the title / file select, where Start belongs to the game. No automatic flip. */
-    if (g_layout_cfg.single_screen && !g_ss_front && (in_field || g_layout_cfg.show_bottom)) {
+    /* also outside the field once past the title: in a cutscene the player update stops (Mother
+     * Maiamai: "tap the Maiamai Map icon on your Touch Screen") and Start went to the game's Pause,
+     * leaving no way to reach the bottom screen without Tab (user) */
+    if (g_layout_cfg.single_screen && !g_ss_front && (in_field || g_layout_cfg.show_bottom || !at_title())) {
         /* single-screen mode: Start brings the bottom screen (map, Gear, Items) up and back instead
          * of the game's Pause box; Select is the game's Start (Pause: Continue / Quit). The game
          * does not use Select on the field. */
@@ -1800,16 +1803,16 @@ static __attribute__((noinline)) void frame_ms_trace(void) {
     if (lim == -2) { const char *e = getenv("ALBW_FRAME_MS"); lim = e ? atol(e) : -1; }
     if (lim >= 0) {
         uint64_t now = SDL_GetTicksNS();
-        extern unsigned long render_variant_builds;
-        static unsigned long pb; static uint64_t pt;
+        extern unsigned long render_variant_builds, render_spec_builds;
+        static unsigned long pb, ps; static uint64_t pt;
         RStats rs = render_stats();
         if (last && (now - last) / 1000000 > (uint64_t)lim) {
             struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
-            fprintf(stderr, "frame-ms: f=%ld %.1f ms end %ld.%09ld (shader variants built %lu, textures uploaded %llu)\n",
+            fprintf(stderr, "frame-ms: f=%ld %.1f ms end %ld.%09ld (shader variants built %lu, specialised programs %lu, textures uploaded %llu)\n",
                     g_plat_frames, (double)(now - last) / 1e6, (long)ts.tv_sec, (long)ts.tv_nsec,
-                    render_variant_builds - pb, (unsigned long long)(rs.tex_uploads - pt));
+                    render_variant_builds - pb, render_spec_builds - ps, (unsigned long long)(rs.tex_uploads - pt));
         }
-        pb = render_variant_builds; pt = rs.tex_uploads;
+        pb = render_variant_builds; ps = render_spec_builds; pt = rs.tex_uploads;
         last = now;
     }
 }

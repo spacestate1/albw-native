@@ -437,8 +437,12 @@ LAB_00651244:
                     ALBW_AS_F32(pppppfVar20) * fVar17);
         }
         pppppppfVar26 = (float *******)CF_FBITS((fVar21 / ALBW_AS_F32(pppppppfVar18)));
-        /* PORT (160bi): a start point a hair outside this edge (distance -0.001 .. 0) is ON the edge */
-        if (ALBW_AS_F32(pppppppfVar26) < 0.0f && -ALBW_AS_F32(pppppppfVar26) < ALBW_AS_F32(DAT_00650e34))
+        /* PORT (160bi): a start point a hair outside this edge (distance -0.001 .. 0) is ON the edge.
+         * PORT (196): also one up to fVar24 (0.01) outside the edge's plane: the callers' inside tests
+         * (0064E9F4 / 0064CB28, the same 0.01) accept such points, so a strip end can lie there; with a
+         * shallow ray the exit distance was -0.008 and "no wall" stopped merged Link (slot 3) */
+        if (ALBW_AS_F32(pppppppfVar26) < 0.0f &&
+            (-ALBW_AS_F32(pppppppfVar26) < ALBW_AS_F32(DAT_00650e34) || -fVar21 <= fVar24))
           pppppppfVar26 = (float *******)0;
         if (ALBW_AS_F32(pppppppfVar35) <= ALBW_AS_F32(pppppppfVar26) &&
             ALBW_AS_F32(pppppppfVar13) <= ALBW_AS_F32(pppppppfVar26)) {

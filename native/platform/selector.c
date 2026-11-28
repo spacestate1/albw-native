@@ -23,6 +23,7 @@ typedef struct { int16_t x, y, w, h; uint8_t native; } SelTarget;   /* centre, s
 
 static const SelTarget SEL_MAP[] = {
     {22, 20, 40, 40},                        /* + (pins) */
+    {22, 72, 40, 40},                        /* Maiamai Map icon (once Link has the map; Mother Maiamai asks for a tap) */
     {22, 142, 36, 40},                       /* pin counter */
     {288, 135, 46, 46},                      /* Y item slot */
     {80, 226, 156, 26}, {240, 226, 156, 26}, /* Gear / Items tabs */
@@ -31,6 +32,7 @@ static const SelTarget SEL_MAP[] = {
    Gear / Items tabs move right and get narrower */
 static const SelTarget SEL_MAP_BELL[] = {
     {22, 20, 40, 40},                        /* + (pins) */
+    {22, 72, 40, 40},                        /* Maiamai Map icon (once Link has the map; Mother Maiamai asks for a tap) */
     {22, 142, 36, 40},                       /* pin counter */
     {288, 135, 46, 46},                      /* Y item slot */
     {28, 226, 52, 26},                       /* bell */
@@ -61,17 +63,25 @@ static const SelTarget SEL_GEAR[] = {
     {85, 178, 40, 24}, {127, 178, 40, 24}, {165, 178, 40, 24}, {205, 178, 40, 24}, {245, 178, 40, 24}, {285, 178, 40, 24},
     {160, 226, 300, 26},                                                          /* Close */
 };
-enum { SEL_PAGE_MAP, SEL_PAGE_ITEMS, SEL_PAGE_GEAR, SEL_PAGE_MAP_BELL, SEL_PAGE_DUNGEON,
+/* the world map dimmed by a cutscene with only the Maiamai Map icon lit (Mother Maiamai: "tap the Maiamai
+   Map icon on your Touch Screen"): that icon is the one target */
+static const SelTarget SEL_MAIAMAI[] = {
+    {22, 72, 40, 40},
+};
+enum { SEL_PAGE_MAP, SEL_PAGE_ITEMS, SEL_PAGE_GEAR, SEL_PAGE_MAP_BELL, SEL_PAGE_DUNGEON, SEL_PAGE_MAIAMAI,
        SEL_PAGE_OTHER /* a page with controls of its own (the bell's warp menu): input passes through */ };
-static const struct { const SelTarget *t; int n; } SEL_PAGES[5] = {
+static const struct { const SelTarget *t; int n; } SEL_PAGES[6] = {
     {SEL_MAP, (int)(sizeof SEL_MAP / sizeof *SEL_MAP)},
     {SEL_ITEMS, (int)(sizeof SEL_ITEMS / sizeof *SEL_ITEMS)},
     {SEL_GEAR, (int)(sizeof SEL_GEAR / sizeof *SEL_GEAR)},
     {SEL_MAP_BELL, (int)(sizeof SEL_MAP_BELL / sizeof *SEL_MAP_BELL)},
     {SEL_DUNGEON, (int)(sizeof SEL_DUNGEON / sizeof *SEL_DUNGEON)},
+    {SEL_MAIAMAI, (int)(sizeof SEL_MAIAMAI / sizeof *SEL_MAIAMAI)},
 };
 
 static int g_sel_page, g_sel_idx, g_sel_on;
+static int g_sel_warp, g_sel_warp_ok;      /* the bell's warp map is up / its "A OK" button is offered */
+static int g_sel_close_in;                 /* frames until the bottom screen is put away (warp confirmed) */
 static int g_sel_x = 160, g_sel_y = 120;   /* last selected centre (kept across pages) */
 static int g_sel_touch;                    /* A held: touch at the target */
 static int g_sel_autotap;                  /* frames of a tap when moving onto a native-cursor target */
@@ -116,7 +126,21 @@ static void sel_input(PlatInput *pin) {
         g_sel_prev = pin->held;
         return;
     }
+    if (g_sel_close_in > 0 && --g_sel_close_in == 0 && g_layout_cfg.show_bottom) {
+        g_sel_warp = g_sel_warp_ok = 0;
+        plat_single_screen_flip();   /* the warp was confirmed: show the scene (Irene arriving) */
+        g_sel_prev = pin->held;
+        return;
+    }
     if (g_sel_page == SEL_PAGE_OTHER) {   /* the game's own menu (bell warp list): D-pad and A are its */
+        /* the warp map with a destination picked: A (or a tap on "A OK") confirms the warp; the game keeps
+         * the warp map on the bottom screen while Irene flies in, so put the panel away after it (user) */
+        uint32_t edge = pin->held & ~g_sel_prev;
+        int tap_ok = pin->touch && pin->touch_x >= 200 && pin->touch_y >= 212;
+        if (g_sel_warp && g_sel_warp_ok && ((edge & KEY_A) || tap_ok) && !g_sel_close_in) {
+            g_sel_close_in = 3;
+            if (getenv("ALBW_SEL_TRACE")) fprintf(stderr, "selector: f=%ld warp confirmed: bottom screen closes\n", g_plat_frames);
+        }
         g_sel_on = 0;
         g_sel_touch = 0;
         g_sel_prev = pin->held;
@@ -149,7 +173,7 @@ static void sel_input(PlatInput *pin) {
         static int lp = -1, li = -1, la;
         int tap = (held & KEY_A) != 0;
         if ((lp != g_sel_page || li != g_sel_idx || la != tap) && getenv("ALBW_SEL_TRACE"))
-            fprintf(stderr, "selector: page %s target %d at %d,%d%s\n", g_sel_page == SEL_PAGE_GEAR ? "gear" : g_sel_page == SEL_PAGE_ITEMS ? "items" : g_sel_page == SEL_PAGE_DUNGEON ? "dungeon" : g_sel_page == SEL_PAGE_MAP_BELL ? "map+bell" : "map",
+            fprintf(stderr, "selector: page %s target %d at %d,%d%s\n", g_sel_page == SEL_PAGE_GEAR ? "gear" : g_sel_page == SEL_PAGE_ITEMS ? "items" : g_sel_page == SEL_PAGE_DUNGEON ? "dungeon" : g_sel_page == SEL_PAGE_MAP_BELL ? "map+bell" : g_sel_page == SEL_PAGE_MAIAMAI ? "maiamai" : "map",
                     g_sel_idx, t->x, t->y, tap ? " TAP" : "");
         lp = g_sel_page; li = g_sel_idx; la = tap;
     }
@@ -193,6 +217,23 @@ static __attribute__((noinline)) void sel_composite(const Layout *l) {
         }
         glReadPixels(28 * w / 320, h - 1 - 226 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, c);   /* bell icon: pure yellow */
         glReadPixels(5 * w / 320, h - 1 - 5 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, d);   /* map frame colour */
+        uint8_t mi[4] = {0};   /* the Maiamai Map icon's gold (about 230, 146, 3 lit) */
+        glReadPixels(22 * w / 320, h - 1 - 72 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, mi);
+        uint8_t ws[3][4] = {{0}};   /* the bell's warp map: the scroll rolled at x 40, dark wood left of it; "A OK" text */
+        glReadPixels(40 * w / 320, h - 1 - 120 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, ws[0]);
+        glReadPixels(25 * w / 320, h - 1 - 120 * h / 240, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, ws[1]);
+        int ok_dark = 0;
+        {   /* the "A OK" label: a block over it (x 244..263, y 221..230), dark letters counted (only wood otherwise) */
+            static uint8_t blk[64 * 32 * 4];
+            int bx = 244 * w / 320, by = h - 1 - 230 * h / 240, bw = 20 * w / 320, bh = 10 * h / 240;
+            if (bw > 64) bw = 64;
+            if (bh > 32) bh = 32;
+            if (bw > 0 && bh > 0) {
+                glReadPixels(bx, by, bw, bh, GL_RGBA, GL_UNSIGNED_BYTE, blk);
+                for (int i = 0; i < bw * bh; i++) ok_dark += blk[i * 4] < 120;
+            }
+            (void)ws[2];
+        }
         glBindFramebuffer(0x8CA8 /* GL_READ_FRAMEBUFFER */, 0);
         int world_map = d[0] > 200 && d[1] > 140 && d[2] < 110;   /* the orange scroll top left */
         /* the world map's bell button: its icon at full brightness means it is there. It is taken to be gone
@@ -206,8 +247,19 @@ static __attribute__((noinline)) void sel_composite(const Layout *l) {
         int page = (a[0] > 90 && a[1] < 45) ? SEL_PAGE_GEAR
                  : rim >= 2 ? SEL_PAGE_ITEMS
                  : (d[2] > 140 && d[2] > d[0] + 10) ? SEL_PAGE_DUNGEON          /* blue-grey dungeon frame */
+                 : !world_map && d[0] > 70 && d[0] < 170 && d[1] > 45 && d[1] < 125 && d[2] < 60 &&
+                   mi[0] > 190 && mi[1] > 100 && mi[1] < 185 && mi[2] < 50 ? SEL_PAGE_MAIAMAI   /* dimmed map scroll (about 108, 82, 29), icon lit */
                  : !world_map ? SEL_PAGE_OTHER                                    /* no orange map scroll: warp menu */
                  : bell ? SEL_PAGE_MAP_BELL : SEL_PAGE_MAP;
+        {   /* warp map: dark wood top left (about 72, 47, 19) and left of the scroll, the scroll's orange at x 40 */
+            int dark = d[0] > 50 && d[0] < 100 && d[1] > 30 && d[1] < 65 && d[2] < 35 && ws[1][0] < 100 && ws[1][2] < 35;
+            int warp = page == SEL_PAGE_OTHER && dark && ws[0][0] > 200 && ws[0][1] > 140 && ws[0][1] < 210 && ws[0][2] < 100;
+            int ok = warp && ok_dark >= 4;   /* dark letters of "A OK" (wood there otherwise: about 181) */
+            if ((warp != g_sel_warp || ok != g_sel_warp_ok) && getenv("ALBW_SEL_TRACE"))
+                fprintf(stderr, "selector: f=%ld warp map %d, OK offered %d\n", g_plat_frames, warp, ok);
+            g_sel_warp = warp;
+            g_sel_warp_ok = ok;
+        }
         if (page != g_sel_page && getenv("ALBW_SEL_TRACE")) {
             extern long g_plat_frames;
             fprintf(stderr, "selector: f=%ld sees page %d (was %d)\n", g_plat_frames, page, g_sel_page);
